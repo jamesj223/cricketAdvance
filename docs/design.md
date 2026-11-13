@@ -17,6 +17,9 @@ marked **Open** and get settled by prototyping, not by debate.
 - Platform: GBA (`.gba` ROM), played on an Anbernic RG SP. Developed and tested in mGBA.
 - Engine: **Butano** (C++). **Decided.**
 - Art: placeholder shapes first; pixel art later.
+- **Ball colour:** red for now. Later: a player-selectable option (red / white / pink),
+  not tied to mode or format. Cheap to do (palette swap); check visibility against the
+  pitch, sightscreen and fielders for each colour.
 
 ## Game mode
 
@@ -30,7 +33,13 @@ Later, maybe: chase-scenario ladder ("18 off 12, 2 wickets left"), T20/ODI/TEST 
 - **Decided — batting view:** behind the bowler, broadcast style. Pitch is a static
   perspective background; ball is tracked in 3D and projected.
   - Ball height shown with a **shadow sprite** on the ground + ball sprite raised by height.
-  - Ball scales up slightly as it approaches (affine sprite).
+  - Ball is scaled by distance (affine sprite). Note: from behind the bowler the ball
+    travels *away* from the camera, so it shrinks slightly towards the batter. A long,
+    telephoto-style camera keeps the change small and makes the batter's end bigger.
+  - Camera constants live in `include/ca_camera.h`; the pitch background is pre-rendered
+    with the same maths by `tools/make_placeholder_graphics.py`.
+  - `GAME_SPEED` (in `include/ca_world.h`) slows everything down for playability:
+    real pace gives ~0.45 s to react; currently 0.6 (~0.8 s for pace, ~1.3 s for spin).
 - **Open — after contact:** how to show where the ball goes and the fielders.
   Must not feel jarring. Candidates (prototype and compare):
   - (a) Follow the ball in the batting view until it leaves the screen, *then*
@@ -89,14 +98,24 @@ Each delivery is defined by: speed, release point, **line** (x at the batter),
 
 Tells for the player: release point, run-up, optional pitch-spot marker on easy difficulty.
 
+**Bowler sprite needed:** without a bowler the ball appears from nowhere ~2 m up, which
+projects to well up the screen and *feels* too far down the pitch. A bowler sprite with a
+run-up and delivery stride (the ball visible in the hand before release) should fix it.
+
 ### Bowlers — later (Phase 4+)
 
 Start with generic pace and spin. Later ideas:
 - **More bowler types:** split pace into swing and seam bowlers; swing into
   inswing / outswing. Split spin into off spin / leg spin.
-- **Left- and right-arm** bowlers (mirror the angle and movement).
+- **Left- and right-arm** bowlers, **over / round the wicket** (`arm` and `side` fields
+  exist; release side is derived from them). Later: bowlers switching sides mid-spell.
 - **Bowling attack per game:** at the start of each game, (semi-)randomly pick ~5
   bowlers and rotate them in realistic spells. Gives each run variety.
+- **Names:** made-up, nostalgic-style player names (initial + surname, e.g. "M Hyder").
+  The profile's `name` is display-only; arm/type/side are explicit fields.
+- **Randomly generated bowlers:** take a base archetype profile, vary its stats randomly
+  (variation size tied to difficulty), and generate a name from first-name / surname
+  tables. Pairs well with the per-game attack.
 - **Difficulty / bowler skill:** higher difficulty → faster pace, more swing/seam/turn,
   fewer bad balls (half-volleys, long hops, wide ones). Could also ramp over a run.
 

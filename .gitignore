@@ -4,3 +4,5 @@ build/
 *.elf
 *.sav
 .DS_Store
+!roms/*.gba
+__pycache__/

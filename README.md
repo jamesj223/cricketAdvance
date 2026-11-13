@@ -29,10 +29,16 @@ make clean                        # remove build output
 
 To play on the RG SP, copy `cricketAdvance.gba` to the GBA ROMs folder on its SD card.
 
+## Phase snapshots
+
+`roms/phase-N.gba` is the ROM at the end of each phase (committed, so you can look back at
+progress). At the end of a phase: `cp cricketAdvance.gba roms/phase-N.gba`.
+
 ## Layout
 
 - `src/`, `include/` — game code
 - `graphics/` — sprite/background BMPs + JSON config (processed by Butano at build time)
 - `tools/` — helper scripts (e.g. placeholder sprite generator)
 - `external/butano/` — Butano, pinned as a git submodule (21.10.0)
-- `docs/` — design doc and plan
+- `docs/` — design doc, plan, learnings
+- `roms/` — saved ROM from the end of each phase

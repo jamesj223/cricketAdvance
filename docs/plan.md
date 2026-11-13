@@ -1,5 +1,8 @@
 # Cricket Advance — Plan
 
+End of every phase: update `docs/learnings.md` (with exercises) and save the ROM as
+`roms/phase-N.gba`.
+
 Rapid prototyping: get something playable early, play it, iterate. Each phase ends with
 a ROM that runs in mGBA and on the RG SP.
 
@@ -12,14 +15,17 @@ a ROM that runs in mGBA and on the RG SP.
 Learn: build pipeline, sprites, input, the main loop / VBlank.
 
 ## Phase 1 — A ball is bowled
-- [ ] Perspective pitch background (placeholder)
-- [ ] Ball with 3D position (x, z, h) in fixed point, projected to screen
-- [ ] Shadow sprite + raised ball; bounce at a length; scaling with distance
-- [ ] Deliveries generated from a bowler profile (data), randomised line/length
-- [ ] Press a button to bowl again
-- [ ] Debug overlay: line, length, speed
+- [x] Perspective pitch background (placeholder)
+- [x] Ball with 3D position (x, z, h) in fixed point, projected to screen
+- [x] Shadow sprite + raised ball; bounce at a length; scaling with distance
+- [x] Deliveries generated from a bowler profile (data), randomised line/length
+- [x] Press a button to bowl again
+- [x] Debug overlay: line, length, speed
 
 Learn: fixed-point maths, affine sprites, backgrounds.
+
+Extras done: B replays the last delivery; L/R switch bowler; pitch marker where the
+ball bounced; "hitting the stumps" detection.
 
 ## Phase 2 — Hitting it (the main iteration loop)
 - [ ] Zones (line × length) and shot-vs-ball timing table
@@ -36,6 +42,7 @@ Learn: fixed-point maths, affine sprites, backgrounds.
 - [ ] High score saved to SRAM
 
 ## Phase 4 — Depth
+- [ ] Placeholder bowler sprite: run-up, delivery stride, ball visible before release
 - [ ] Pace vs spin, swing, seam, turn; bowler tells
 - [ ] Bowler variety: swing/seam, in/outswing, off/leg spin, left/right arm
 - [ ] Per-game attack of ~5 bowlers rotating in spells
@@ -48,5 +55,6 @@ Learn: fixed-point maths, affine sprites, backgrounds.
 ## Phase 5 — Polish
 - [ ] Pixel art (batter, bowler, pitch, fielders)
 - [ ] Title screen, menus
+- [ ] Options: ball colour (red / white / pink)
 - [ ] Fancier event animations (full-screen wicket, milestones)
 - [ ] Sound and music
