@@ -1,1 +1,6 @@
 .internal
+build/
+*.gba
+*.elf
+*.sav
+.DS_Store

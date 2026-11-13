@@ -4,10 +4,10 @@ Rapid prototyping: get something playable early, play it, iterate. Each phase en
 a ROM that runs in mGBA and on the RG SP.
 
 ## Phase 0 — Hello GBA
-- [ ] Install devkitPro (devkitARM) and mGBA
-- [ ] Get Butano, build one of its examples
-- [ ] Our own project: a sprite moving with the D-pad
-- [ ] Copy the ROM to the RG SP and run it
+- [x] Install devkitPro (devkitARM) and mGBA
+- [x] Get Butano (submodule, 21.10.0)
+- [x] Our own project: a sprite moving with the D-pad
+- [ ] Copy the ROM to the RG SP and run it (deferred — tested in mGBA only)
 
 Learn: build pipeline, sprites, input, the main loop / VBlank.
 
