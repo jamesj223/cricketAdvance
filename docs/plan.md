@@ -28,11 +28,36 @@ Extras done: B replays the last delivery; L/R switch bowler; pitch marker where 
 ball bounced; "hitting the stumps" detection.
 
 ## Phase 2 — Hitting it (the main iteration loop)
-- [ ] Zones (line × length) and shot-vs-ball timing table
-- [ ] Control scheme 1; then schemes 2 and 3, switchable in a debug menu
-- [ ] Outcomes: miss, edge, block, 1–6, bowled, caught
-- [ ] Feedback: timing indicator and shot rating after each ball
+- [x] Restructure: main.cpp → practice scene + ball/batter views + debug HUD
+- [x] Zones (line × length) and shot-vs-ball rating table (`src/ca_shots.cpp`)
+- [x] Control schemes (now Basic and Pro), switchable with SELECT
+- [x] Playtest round 1 → two schemes: Basic (8-way + R loft) and Pro (shoulders + A+B loft)
+- [x] Live timing bar (optional, toggle with B)
+- [x] Outcomes: miss, edge, block, 1–6, bowled, caught (no LBW yet)
+- [x] Feedback: timing (frames early/late) and shot rating after each ball (text for now)
+- [x] Visual timing bar after each shot
+- [x] Broken-stumps frame when bowled (batter's stumps are now a sprite)
+- [x] Loft for Pro Controls (A+B)
+- [x] Playtest on real hardware (Miyoo Mini Plus — Basic feels great; Pro needs rethinking)
 - [ ] **Play it a lot. Tune. Pick a control scheme.**
+
+### Phase 2 — where we are / next up (WIP)
+Status: playable practice loop, both schemes work; real-hardware testing under way.
+Full notes and reasoning in `docs/design.md` ("Controls — playtest notes",
+"Timing feedback"). Candidate next steps, roughly in order:
+- [ ] Fix caught-behind / caught: aim catches at keeper/slips/fielder and stop the ball
+      there; only uncaught edges run away
+- [ ] Mistimed blocks carry real risk (early = leading edge / return catch,
+      late = thin edge to keeper)
+- [ ] Sound: bounce (pitch from impact speed), bat-on-ball, edge, stumps, crowd on 4/6
+- [ ] Pro Controls v2 — prototype "scheme 4" (D-pad aims, A/R/B/L = front/back
+      foot attack/block)
+- [ ] Show what you pressed in the after-ball summary
+- [ ] Continuous hit angle from timing error (and ball line)
+- [ ] Decide the fate of the live timing bar; try subtler timing cues
+      (length-zone pitch colours, bounce sound)
+- [ ] Phase-end: write the Phase 2 section of `docs/learnings.md` with exercises,
+      save `roms/phase-2.gba`
 
 ## Phase 3 — Quick Play loop
 - [ ] Bottom scoreboard: runs, balls faced; out → game over → restart

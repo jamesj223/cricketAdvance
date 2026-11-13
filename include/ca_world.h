@@ -40,6 +40,15 @@ namespace ca
     constexpr bn::fixed STUMP_HEIGHT = 0.71;
     constexpr bn::fixed BALL_RADIUS = 0.036;
 
+    // Batter (right-handed). Stands on the leg side of the stumps, just behind the crease.
+    constexpr bn::fixed BATTER_X = 0.3;
+    constexpr bn::fixed BATTER_Z = 19.4;
+    constexpr bn::fixed BATTER_FRONT_FOOT_Z = 18.9;     // where the batter stands after moving
+    constexpr bn::fixed BATTER_BACK_FOOT_Z = 19.7;
+    // Where the bat meets the ball: further forward on the front foot, deeper on the back.
+    constexpr bn::fixed FRONT_FOOT_CONTACT_Z = 18.3;
+    constexpr bn::fixed BACK_FOOT_CONTACT_Z = 19.4;
+
     constexpr bn::fixed RELEASE_Z = 1.0;             // just behind the bowler's popping crease
     constexpr bn::fixed DEAD_BALL_Z = 23.0;          // roughly where the keeper takes it
 

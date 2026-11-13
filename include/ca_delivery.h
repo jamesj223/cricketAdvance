@@ -35,8 +35,21 @@ namespace ca
         // Advances one frame. Returns false once the ball is dead.
         bool update();
 
+        // The bat hits the ball: it now travels with this velocity (m/s), and can no
+        // longer hit the stumps.
+        void hit(const vec3& velocity);
+
+        // While suspended, reaching the stumps is only *remembered*, not acted on. Used
+        // while the game waits a few frames to decide what shot was pressed (A+B chord),
+        // so a shot pressed in time isn't ruled bowled just because the decision was late.
+        // Resuming applies a remembered stumps hit, unless the bat has hit the ball.
+        void suspend_stumps();
+        void resume_stumps();
+
         [[nodiscard]] const vec3& position() const { return _pos; }
         [[nodiscard]] bool dead() const { return _dead; }
+        [[nodiscard]] int frames() const { return _frames; }
+        [[nodiscard]] bool was_hit() const { return _hit; }
 
         // Recorded as the ball travels (valid once the corresponding flag is set).
         [[nodiscard]] bool bounced() const { return _bounced; }
@@ -56,6 +69,11 @@ namespace ca
         vec3 _bounce_pos;
         vec3 _crease_pos;
         int _frames = 0;
+        int _hit_frame = 0;
+        bool _hit = false;
+        bool _stumps_live = true;
+        bool _stumps_hit_pending = false;
+        vec3 _stumps_hit_pos;
         bool _bounced = false;
         bool _reached_crease = false;
         bool _reached_stumps = false;
@@ -63,9 +81,19 @@ namespace ca
         bool _dead = false;
     };
 
-    // Debug descriptions.
-    [[nodiscard]] const char* length_name(bn::fixed length_from_stumps);
-    [[nodiscard]] const char* line_name(bn::fixed x_at_crease);
+    // Everything worth knowing about a delivery before it's bowled, found by simulating a
+    // copy of its flight to the end (cheap: ~60 steps). Frame numbers count from release,
+    // matching ball_flight::frames().
+    struct delivery_preview
+    {
+        bn::fixed length;           // bounce distance in front of the stumps
+        bn::fixed x_at_crease;      // line, where it passes the popping crease
+        int front_contact_frame;    // when it reaches the bat on the front foot ...
+        int back_contact_frame;     // ... and on the back foot
+        int stumps_frame;           // when it reaches the stumps
+    };
+
+    [[nodiscard]] delivery_preview preview_delivery(const delivery_plan& plan);
 }
 
 #endif

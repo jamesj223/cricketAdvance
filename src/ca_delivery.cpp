@@ -138,7 +138,7 @@ bool ball_flight::update()
         _crease_pos = interpolate_at_z(prev, _pos, POPPING_CREASE_Z);
     }
 
-    if(! _reached_stumps && _pos.z >= STUMPS_Z)
+    if(! _hit && ! _reached_stumps && _pos.z >= STUMPS_Z)
     {
         _reached_stumps = true;
         vec3 at_stumps = interpolate_at_z(prev, _pos, STUMPS_Z);
@@ -146,13 +146,30 @@ bool ball_flight::update()
         if(bn::abs(at_stumps.x) <= STUMP_HALF_WIDTH + BALL_RADIUS &&
                 at_stumps.h <= STUMP_HEIGHT + BALL_RADIUS)
         {
-            _hit_stumps = true;
-            _pos = at_stumps;
-            _dead = true;
+            if(_stumps_live)
+            {
+                _hit_stumps = true;
+                _pos = at_stumps;
+                _dead = true;
+            }
+            else
+            {
+                _stumps_hit_pending = true;
+                _stumps_hit_pos = at_stumps;
+            }
         }
     }
 
-    if(_pos.z >= DEAD_BALL_Z || _frames > 60 * 5)
+    if(_hit)
+    {
+        // Off the bat: dead once it's well away (or has stopped). Stopping before the
+        // camera (z ~ -24) also keeps the projection maths in a safe range.
+        if(_pos.z < -12 || _pos.z > 40 || bn::abs(_pos.x) > 30 || _frames - _hit_frame > 90)
+        {
+            _dead = true;
+        }
+    }
+    else if(_pos.z >= DEAD_BALL_Z || _frames > 60 * 5)
     {
         _dead = true;
     }
@@ -160,55 +177,85 @@ bool ball_flight::update()
     return ! _dead;
 }
 
-const char* length_name(bn::fixed length)
+void ball_flight::hit(const vec3& velocity)
 {
-    if(length < 2)
-    {
-        return "YORKER";
-    }
-
-    if(length < 4)
-    {
-        return "FULL";
-    }
-
-    if(length < bn::fixed(6.5))
-    {
-        return "GOOD LENGTH";
-    }
-
-    if(length < 8)
-    {
-        return "BACK OF A LENGTH";
-    }
-
-    return "SHORT";
+    _vel = velocity;
+    _air_movement = 0;
+    _deviation = 0;
+    _bounced = true;            // so no seam/turn is applied if it lands
+    _restitution = 0.45;        // outfield bounce
+    _friction = 0.85;
+    _hit = true;
+    _hit_frame = _frames;
+    _stumps_hit_pending = false;
 }
 
-const char* line_name(bn::fixed x)
+void ball_flight::suspend_stumps()
 {
-    // Right-handed batter: off side is -x.
-    if(x < bn::fixed(-0.6))
+    _stumps_live = false;
+}
+
+void ball_flight::resume_stumps()
+{
+    if(_stumps_live)
     {
-        return "WIDE OUTSIDE OFF";
+        return;
     }
 
-    if(x < -(STUMP_HALF_WIDTH + BALL_RADIUS))
+    _stumps_live = true;
+
+    if(_stumps_hit_pending && ! _hit)
     {
-        return "OUTSIDE OFF";
+        _hit_stumps = true;
+        _pos = _stumps_hit_pos;
+        _dead = true;
     }
 
-    if(x <= STUMP_HALF_WIDTH + BALL_RADIUS)
+    _stumps_hit_pending = false;
+}
+
+delivery_preview preview_delivery(const delivery_plan& plan)
+{
+    ball_flight flight(plan);
+    delivery_preview preview = {};
+    bool front = false;
+    bool back = false;
+    bool stumps = false;
+
+    while(true)
     {
-        return "ON THE STUMPS";
+        bool alive = flight.update();
+        bn::fixed z = flight.position().z;
+
+        if(! front && z >= FRONT_FOOT_CONTACT_Z)
+        {
+            front = true;
+            preview.front_contact_frame = flight.frames();
+        }
+
+        if(! back && z >= BACK_FOOT_CONTACT_Z)
+        {
+            back = true;
+            preview.back_contact_frame = flight.frames();
+        }
+
+        // Reaching the stumps (or the ball dying, e.g. by hitting them) ends the batter's
+        // chance to play it.
+        if(! stumps && (z >= STUMPS_Z || ! alive))
+        {
+            stumps = true;
+            preview.stumps_frame = flight.frames();
+        }
+
+        if(! alive)
+        {
+            break;
+        }
     }
 
-    if(x < bn::fixed(0.6))
-    {
-        return "DOWN LEG";
-    }
-
-    return "WIDE DOWN LEG";
+    preview.length = STUMPS_Z - flight.bounce_position().z;
+    preview.x_at_crease = flight.crease_position().x;
+    return preview;
 }
 
 }

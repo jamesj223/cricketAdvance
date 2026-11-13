@@ -116,6 +116,10 @@ Start with generic pace and spin. Later ideas:
 - **Randomly generated bowlers:** take a base archetype profile, vary its stats randomly
   (variation size tied to difficulty), and generate a name from first-name / surname
   tables. Pairs well with the per-game attack.
+- **Special / change-up balls:** each bowler has one or more signature variations used
+  occasionally: slower ball, bouncer, yorker, wrong'un, arm ball, etc. Fits the profile
+  model as a small list of variation profiles (overrides on speed/length/movement) plus
+  a percent chance.
 - **Difficulty / bowler skill:** higher difficulty → faster pace, more swing/seam/turn,
   fewer bad balls (half-volleys, long hops, wide ones). Could also ramp over a run.
 
@@ -171,6 +175,114 @@ produced them. Adding or removing a scheme never touches the timing mechanics.
 
 Scheme 1 has no footwork input, so it picks the footwork for you based on the ball —
 effectively an assisted/easy mode.
+
+### Batting model (Phase 2 implementation)
+
+- Pressing A/B *is* the moment of contact. Timing error = press frame − frame the ball
+  reaches the bat. Front-foot contact is at z 18.3, back-foot at 19.4, so the back foot
+  gives ~3 more frames against pace (and less margin before the stumps).
+- Timing windows by rating (frames, either side): ideal 2/4/7, good 1/3/6, risky 0/2/5,
+  wrong –/1/4 (perfect/good/mistimed). Defence gets +6 early / +2 late (being early on a
+  block rarely matters; being late gets you bowled or caught behind).
+- Being late on a ball that's hitting the stumps gets you bowled (the ball gets there
+  first). Late on anything else still makes contact — "playing late" off the back foot
+  is fine.
+- Mistiming steers the ball: early → squarer on the leg side, late → finer on the off side.
+- Outcome score = timing (perfect 3, good 2, mistimed 1) + rating (0–3), mapped to
+  runs / edges / catches; lofted shots have higher reward and catch risk.
+- Early presses wait for the ball (hit at arrival); on-time/late presses hit it at once.
+- Not yet: LBW, wides/no-balls, full tosses.
+- **LBW (maybe later):** not required. If added, fake it: e.g. a leave/miss that would
+  have hit the stumps, pitched in line (not outside leg), hitting the pads.
+- **Run-outs:** no, unless manual running comes back.
+
+### Controls — playtest notes (Phase 2)
+
+- Up = back foot, Down = front foot (the batter faces the camera, so forward is *down*).
+- Scheme 1 and 3 feel simple/intuitive; 3 feels most arcade and its loft (R) is liked.
+  Scheme 2 feels the most precise. Likely keep more than one long term.
+- **Decided — two schemes:**
+  - **Basic Controls** (was scheme 3, default): D-pad 8-way. Left/Right = off/leg,
+    Up/Down = back/front foot, neither = the game picks the footwork. A hit, B block,
+    hold R = loft. (Absorbed scheme 1, which was removed.)
+  - **Pro Controls** (was scheme 2): Up/Down = back/front foot (neither = front),
+    L/R = off/leg (neither or both = straight). A hit, B block, **A+B = lofted hit**.
+    The chord is detected by waiting up to 3 frames after the first press; the shot is
+    still timed from the first press, and the stumps can't bowl you during the wait.
+    Needs real-hardware testing.
+- Loft alternatives considered: decide-before-the-ball (not loved), hold-and-release
+  for power/loft (later experiment, could tie into fatigue).
+- Replay button removed.
+- Blocking may now be a little too easy — revisit.
+- Needs testing on real hardware (RG SP).
+- **Real-hardware playtest (Miyoo Mini Plus):** Basic feels great (33 off 24 first
+  innings); real buttons feel far better than keyboard. Pro: more precision and decision
+  making, but three separate inputs (D-pad foot + shoulder side + A timing) is "pat your
+  head and rub your tummy". Good when it works, but when it doesn't you freeze — e.g. a
+  short wide ball begging to be cut came out as a straight drive off the wrong foot.
+  Middling one on Basic felt better than on Pro. **Verdict:** Basic is in a good place
+  (can still improve). Keep two options, Basic and Pro, but Pro needs rethinking —
+  probably fewer simultaneous inputs at the moment of the shot (scheme 4 puts the
+  decision into *which* button you press, so it's two inputs, not three).
+- **To fix (hardware playtest):**
+  - *Caught-behind looks wrong:* the edge is sent ~20-25 degrees off straight-back (fine
+    leg / third man) at full speed and keeps rolling, as there's no keeper to catch it, so
+    it reads as "ran away to the side" while the banner says CAUGHT BEHIND. Fix: aim
+    catches at the keeper / slips cordon and stop the ball there (a "caught" stop); leave
+    wider angles for edges that are *not* caught (those should run away for runs).
+    Same for lofted CAUGHT: end the flight at the catch, don't let it land and roll.
+  - *Mistimed blocks too safe:* an early (yellow / GOOD) block can't get you out, because
+    GOOD timing + any non-zero shot rating already scores 3 = safe, and defence windows
+    are already widened. Idea: base defence risk on the timing grade more than the score.
+    Early = leading edge popping up (return catch / bat-pad); late = thin edge to the
+    keeper. Ties into "blocking too easy".
+- **Open questions (after night 1, no change yet — test on hardware first):**
+  - Basic and Pro have drifted close together (main difference: L/R shoulders vs D-pad
+    left/right for side). The original intent was one scheme with *auto* footwork and one
+    where you choose it. Revisit which two we actually want.
+  - Neither scheme can express footwork *and* a contradicting aim on one axis, e.g. a
+    **back-foot cover drive** (back foot = Up, but cover is "forward-ish off side") or a
+    **front-foot leg glance** (front = Down, but fine leg is "backward leg side"). Today
+    direction is only off / straight / leg, so the shot table can't hold these yet anyway.
+    Needs a finer direction model (forward/square/fine on each side) and a control
+    mapping that separates footwork from aim.
+  - **Scheme 4 idea:** D-pad = aim only (8-way); footwork on the buttons:
+    A = front-foot attack, R = back-foot attack, B = front-foot block, L = back-foot block.
+    Cleanly solves the axis clash above. Unsure about the blocks on B/L.
+
+### Timing feedback
+
+- After the shot: a colour-coded timing bar (red miss, orange mistimed, yellow good,
+  green perfect) using the actual windows for the shot played, with an arrow at your press.
+- **Live timing bar** (toggle with B between balls): thin track along the bottom, ticks
+  at the front-foot and back-foot contact moments, marker moving with the ball. Can't be
+  shot-specific (no shot chosen yet). An assist: candidate for training / easy only.
+- Playtest verdict on the live bar: not helpful — the game is too fast, and looking down
+  at it makes you late. It can't be tracked in peripheral vision. Likely to be removed.
+- **Next to try — a cue on the ball itself**, so your eyes stay on the ball. The ideal
+  moment is known in advance (from the delivery preview), but a cue *at* that moment is
+  too late to react to (~12 frames of reaction time). So it must be anticipatory, e.g.
+  an "approach ring" around the ball that shrinks and closes exactly at the ideal frame
+  (rhythm-game style), or a flash a fixed number of frames before.
+  Which moment: front- and back-foot contact differ (~3 frames for pace, ~6 for spin);
+  could use the contact moment of the best-rated shot for that ball (which also hints at
+  the right footwork — fine for a training / easy assist).
+  User concern: an approach ring may be *too* helpful and make it feel like a rhythm game
+  (watching the ring rather than the ball's trajectory). Not sold — keep looking for
+  something subtler / more "cricket".
+- **Sound — likely the best cue of all (later):** a "thock" when the ball bounces,
+  plus bat-on-ball and stumps sounds. It's the cue real batters use, it's on every
+  difficulty without being an "assist", and it keeps your eyes on the ball. Needs the
+  Makefile `AUDIO` dir set up (Butano supports Direct Sound samples + Maxmod).
+  **Bounce pitch by length:** play one bounce sample at a varied speed
+  (`sound_item::play(volume, speed, panning)`): deeper thud for short, higher for full.
+  Drive it from the ball's downward speed at the bounce, not length directly, so it falls
+  out of the physics (short balls hit the pitch steeper and harder). Volume can scale too,
+  and panning can follow the line. A sonic pitch map — teaches length by ear.
+- **Training aid: colour-coded length zones on the pitch**, like TV pitch maps
+  (full / good / short bands). Teaches reading length, which is what the shot choice
+  really depends on, without telling you *when* to swing. Easy: pre-rendered pitch
+  variant, toggled as an option.
 
 ### Feedback (make outcomes feel fair)
 
