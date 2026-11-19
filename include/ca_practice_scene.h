@@ -16,7 +16,6 @@
 #include "ca_shots.h"
 #include "ca_stumps_view.h"
 #include "ca_timing_bar.h"
-#include "ca_live_timing_bar.h"
 
 namespace ca
 {
@@ -42,16 +41,14 @@ namespace ca
         batter_view _batter;
         stumps_view _stumps;
         timing_bar _timing_bar;
-        live_timing_bar _live_bar;
-        shot_reader _reader;
-        bool _live_bar_enabled = false;
         debug_hud _hud;
         bn::random _random;
 
         state _state = state::WAITING;
         int _run_up_counter = 0;
+        int _cooldown = 0;      // frames left ignoring input after a ball
         int _bowler_index = 0;
-        control_scheme _scheme = control_scheme::BASIC;
+        control_scheme _scheme = control_scheme::BASIC_V2;
 
         // The current delivery.
         bn::optional<delivery_plan> _plan;
@@ -65,6 +62,7 @@ namespace ca
         shot_type _shot = shot_type::LEAVE;
         shot_outcome _outcome;
         int _hit_frame = -1;    // frame the bat meets the ball; -1 = it won't
+        vec3 _hit_position;     // where the bat met it
 
         // Running tally (for playtesting; the real scoreboard comes in Phase 3).
         int _runs = 0;
@@ -76,6 +74,7 @@ namespace ca
         void _release();
         void _update_live();
         void _play_shot(const shot_intent& intent, int frame);
+        void _check_catch();
         void _finish_ball();
 
         [[nodiscard]] footwork _best_footwork(const shot_intent& intent) const;

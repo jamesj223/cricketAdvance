@@ -17,6 +17,10 @@ marked **Open** and get settled by prototyping, not by debate.
 - Platform: GBA (`.gba` ROM), played on an Anbernic RG SP. Developed and tested in mGBA.
 - Engine: **Butano** (C++). **Decided.**
 - Art: placeholder shapes first; pixel art later.
+- **Ball sprite — later:** give it a seam; animate the seam spinning for spinners; for
+  swing bowlers, make one side lighter (the shiny side), which shows which way it should
+  swing — and gives a sneaky visual tell when an outswing bowler slips in a surprise
+  inswinger.
 - **Ball colour:** red for now. Later: a player-selectable option (red / white / pink),
   not tied to mode or format. Cheap to do (palette swap); check visibility against the
   pitch, sightscreen and fielders for each colour.
@@ -103,6 +107,10 @@ projects to well up the screen and *feels* too far down the pitch. A bowler spri
 run-up and delivery stride (the ball visible in the hand before release) should fix it.
 
 ### Bowlers — later (Phase 4+)
+
+- **Wides and no balls — later (needs a scoreboard / extras, Phase 3+):** occasional real
+  wides (past the wide line, +1 run, ball re-bowled) and a very rare no ball (~1 in 100)
+  — possibly with a free hit, which suits the arcade feel.
 
 Start with generic pace and spin. Later ideas:
 - **More bowler types:** split pace into swing and seam bowlers; swing into
@@ -225,12 +233,24 @@ effectively an assisted/easy mode.
   probably fewer simultaneous inputs at the moment of the shot (scheme 4 puts the
   decision into *which* button you press, so it's two inputs, not three).
 - **To fix (hardware playtest):**
-  - *Caught-behind looks wrong:* the edge is sent ~20-25 degrees off straight-back (fine
+  - *(Fixed)* Input ignored for 45 frames after each ball (a very late press bowled the
+    next ball).
+  - *(Fixed)* *Caught-behind looks wrong:* the edge is sent ~20-25 degrees off straight-back (fine
     leg / third man) at full speed and keeps rolling, as there's no keeper to catch it, so
     it reads as "ran away to the side" while the banner says CAUGHT BEHIND. Fix: aim
     catches at the keeper / slips cordon and stop the ball there (a "caught" stop); leave
     wider angles for edges that are *not* caught (those should run away for runs).
     Same for lofted CAUGHT: end the flight at the catch, don't let it land and roll.
+  - *Bad balls too bad:* the loose ball is uniform over length -0.5..11 m and line
+    -1.2..+0.8 m (before swing/seam), so it's usually a very short, very wide ball —
+    unplayable rather than a gift. Fix: pick from a few *hittable* kinds instead —
+    half-volley (1.5-3 m, around the stumps), long hop (8-10 m, around off), width
+    (good-ish length, 0.4-0.8 m outside off), on the pads (full, just down leg).
+    Real wides are a separate thing (below).
+  - *Blocking should depend on the line* (user): blocking a wide ball = play and miss;
+    blocking on 5th stump (OFF zone) = real edge risk; on the stumps = safest. Makes
+    **leaving** the right answer to wide balls, which is cricket's core off-side decision.
+    Combine with the timing-grade risk below.
   - *Mistimed blocks too safe:* an early (yellow / GOOD) block can't get you out, because
     GOOD timing + any non-zero shot rating already scores 3 = safe, and defence windows
     are already widened. Idea: base defence risk on the timing grade more than the score.
@@ -249,6 +269,57 @@ effectively an assisted/easy mode.
   - **Scheme 4 idea:** D-pad = aim only (8-way); footwork on the buttons:
     A = front-foot attack, R = back-foot attack, B = front-foot block, L = back-foot block.
     Cleanly solves the axis clash above. Unsure about the blocks on B/L.
+    *Later verdict (user): probably too complicated / unintuitive — same problem as Pro.*
+- **Basic v2 proposal (user, after a few days' thought):** the player picks only a
+  *direction* and plays the shot; the game picks front or back foot, whichever suits
+  the ball better. Frees the D-pad's up/down axis for direction, which unlocks the
+  missing shots (back-foot cover drive, front-foot leg glance...): ~8 directions x 2 feet.
+  - Key insight: the batter faces the camera, so the D-pad maps *exactly* onto the field
+    as seen on screen. Down = back past the bowler, down-left = cover, left = point,
+    up-left = third man / late cut, up-right = fine leg / glance, right = square leg,
+    down-right = midwicket. Up = behind the keeper (ramp — nothing sensible for now),
+    so **Up could be block** (user idea), which frees B.
+  - Freed B could become **loft** (A = along the ground, B = in the air), dropping R:
+    a two-button arcade scheme. Or keep B as block. To decide in testing.
+  - Skill shifts from "pick the right foot" to "pick the right *direction* for the
+    line and length" (cutting a full straight ball is still wrong). Watch it isn't too easy.
+  - Pro could then be Basic v2 plus an *optional* footwork override (e.g. L/R shoulders =
+    back/front foot): precision when you want it, ignorable when you don't — so you
+    can't tangle your thumbs.
+- **Decided & built — three schemes for now** (SELECT between balls cycles them):
+  - **Basic V2** (default): D-pad = direction on the field, Up = block, A or B = play
+    the shot, hold L or R = lofted (changed from B = loft, to match Pro V3). The game
+    picks front/back foot (better-rated one).
+  - Between balls, A or B bowls the next ball (pressing B after a front-foot shot in
+    Pro V3 kept not working).
+  - **Pro V2**: Basic V2 plus hold **L = front foot, R = back foot**, then A/B to play and
+    time it. **Neither or both held = "stuck on the crease":** the game picks the better
+    foot, but the shot is rated one notch worse (shown as "ON CREASE" in the feedback).
+    Chosen over a coin flip: still a shot, deterministic, cricket-flavoured, mildly
+    punishing. Revisit in playtesting.
+  - **Basic V1 (old)**: kept for comparison; will probably go.
+  - Old Pro (A+B chord loft) removed, along with the chord wait / stumps suspension.
+- **Playtest (laptop):** Basic V2 is the favourite; Pro V2 still doesn't feel as good.
+  Basic V2 feels a lot easier (the game always takes the better of two shots) — may need
+  tighter ratings / windows. It also chose back-foot shots for balls that looked full
+  (good length): fixed by toning down back-foot ratings at good length and breaking
+  ties by the real length (forward if fuller than 5.5 m).
+- **Pro V3 (built, to test):** D-pad aim, Up = block. **B = front foot, A = back foot** —
+  the button picks the foot *and* times the shot, so it's two inputs, not three. Hold
+  L or R = lofted (held in advance, not timed). A+B together = on the crease. B sits
+  lower on the GBA, so lower button = forward = down the screen.
+- **Shots — 16 rated + leave.** Direction x foot:
+
+  | D-pad | Front foot | Back foot |
+  |---|---|---|
+  | down / none | Straight drive | Back-foot punch |
+  | down-left (cover) | Cover drive | Back-foot drive |
+  | left (point) | Square drive | Cut |
+  | up-left (third man) | Guide | Late cut |
+  | up-right (fine leg) | Leg glance | Hook |
+  | right (square leg) | Flick | Pull |
+  | down-right (midwicket) | On drive | Slog |
+  | up | Forward defence | Back-foot defence |
 
 ### Timing feedback
 
@@ -258,7 +329,8 @@ effectively an assisted/easy mode.
   at the front-foot and back-foot contact moments, marker moving with the ball. Can't be
   shot-specific (no shot chosen yet). An assist: candidate for training / easy only.
 - Playtest verdict on the live bar: not helpful — the game is too fast, and looking down
-  at it makes you late. It can't be tracked in peripheral vision. Likely to be removed.
+  at it makes you late. It can't be tracked in peripheral vision. **Removed.**
+  The after-the-ball timing bar stays (maybe toggleable later).
 - **Next to try — a cue on the ball itself**, so your eyes stay on the ball. The ideal
   moment is known in advance (from the delivery preview), but a cue *at* that moment is
   too late to react to (~12 frames of reaction time). So it must be anticipatory, e.g.
@@ -283,6 +355,12 @@ effectively an assisted/easy mode.
   (full / good / short bands). Teaches reading length, which is what the shot choice
   really depends on, without telling you *when* to swing. Easy: pre-rendered pitch
   variant, toggled as an option.
+
+### Settings — later
+
+A settings / options screen, whether or not these are also tied to difficulty:
+after-ball timing bar on/off, pitch-map length colours (off / after the ball only / during
+live play), ball colour, control scheme.
 
 ### Feedback (make outcomes feel fair)
 

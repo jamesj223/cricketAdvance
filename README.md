@@ -6,6 +6,13 @@ See [docs/design.md](docs/design.md) and [docs/plan.md](docs/plan.md).
 
 ## Setup (once per machine)
 
+All platforms: clone with submodules (`git clone --recursive …`, or in an existing clone
+`git submodule update --init`). Butano's build tools need **Python 3** (they convert the
+graphics at build time); Pillow is only needed to regenerate the placeholder sprites
+(`pip install pillow`).
+
+### macOS
+
 1. Install devkitPro: the macOS `.pkg` from https://github.com/devkitPro/pacman/releases/latest,
    then `sudo dkp-pacman -Sy && sudo dkp-pacman -S gba-dev`.
 2. Add to `~/.zshrc`:
@@ -15,19 +22,31 @@ See [docs/design.md](docs/design.md) and [docs/plan.md](docs/plan.md).
    export PATH=$DEVKITPRO/tools/bin:$PATH
    ```
 3. Install mGBA: `brew install --cask mgba`.
-4. Python 3 with Pillow (only needed to regenerate placeholder sprites).
-5. Clone with submodules: `git clone --recursive …`, or in an existing clone
-   `git submodule update --init`.
+
+### Windows (not yet tested on this project)
+
+1. Install devkitPro with the graphical installer from
+   https://github.com/devkitPro/installer/releases/latest — tick **GBA Development**.
+   It installs to `C:\devkitPro` and sets the `DEVKITPRO` / `DEVKITARM` variables.
+2. Install Python 3 from https://www.python.org (tick "Add python.exe to PATH").
+   The Makefile uses `python` on Windows and `python3` elsewhere.
+3. Install mGBA from https://mgba.io/downloads.html.
+4. Build from the **devkitPro MSYS2** shell (Start menu → devkitPro → MSYS2), which has
+   `make`. Windows drives are under `/c/…`, e.g. `cd /c/Users/you/Git/cricketAdvance`.
 
 ## Build and run
 
 ```sh
-make -j8                          # builds cricketAdvance.gba
-open -a mGBA cricketAdvance.gba   # run in the emulator
-make clean                        # remove build output
+make -j8        # builds cricketAdvance.gba
+make clean      # remove build output
 ```
 
-To play on the RG SP, copy `cricketAdvance.gba` to the GBA ROMs folder on its SD card.
+Run it in the emulator:
+- macOS: `open -a mGBA cricketAdvance.gba`
+- Windows: open `cricketAdvance.gba` in mGBA (or drag it onto the window).
+
+To play on a handheld (Anbernic RG SP, Miyoo Mini Plus), copy `cricketAdvance.gba` to the
+GBA ROMs folder on its SD card.
 
 ## Phase snapshots
 

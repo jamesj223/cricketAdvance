@@ -63,7 +63,7 @@ namespace
         {
             /* YORKER */ { 0,   0,   0,   0 },
             /* FULL   */ { 0,   0,   0,   0 },
-            /* GOOD   */ { 1,   2,   2,   1 },
+            /* GOOD   */ { 1,   1,   2,   1 },
             /* SHORT  */ { 1,   2,   2,   1 },
         },
         // PULL
@@ -72,6 +72,62 @@ namespace
             /* FULL   */ { 0,   0,   0,   1 },
             /* GOOD   */ { 0,   0,   1,   2 },
             /* SHORT  */ { 0,   2,   3,   3 },
+        },
+        // SQUARE_DRIVE: front foot to point; full and wide
+        {
+            /* YORKER */ { 1,   0,   0,   0 },
+            /* FULL   */ { 3,   2,   0,   0 },
+            /* GOOD   */ { 2,   1,   0,   0 },
+            /* SHORT  */ { 0,   0,   0,   0 },
+        },
+        // GUIDE: front foot, run down to third man; outside off
+        {
+            /* YORKER */ { 0,   1,   0,   0 },
+            /* FULL   */ { 1,   2,   0,   0 },
+            /* GOOD   */ { 2,   2,   0,   0 },
+            /* SHORT  */ { 1,   1,   0,   0 },
+        },
+        // LEG_GLANCE: front foot to fine leg; full on the pads
+        {
+            /* YORKER */ { 0,   0,   1,   2 },
+            /* FULL   */ { 0,   0,   2,   3 },
+            /* GOOD   */ { 0,   0,   1,   2 },
+            /* SHORT  */ { 0,   0,   0,   1 },
+        },
+        // FLICK: front foot to square leg; full on the stumps / pads
+        {
+            /* YORKER */ { 0,   0,   2,   2 },
+            /* FULL   */ { 0,   1,   2,   3 },
+            /* GOOD   */ { 0,   0,   1,   2 },
+            /* SHORT  */ { 0,   0,   0,   0 },
+        },
+        // BACK_FOOT_DRIVE: back foot through cover; short of a length outside off
+        {
+            /* YORKER */ { 0,   0,   0,   0 },
+            /* FULL   */ { 0,   0,   0,   0 },
+            /* GOOD   */ { 1,   2,   1,   0 },
+            /* SHORT  */ { 2,   3,   0,   0 },
+        },
+        // LATE_CUT: back foot to third man; short and wide
+        {
+            /* YORKER */ { 0,   0,   0,   0 },
+            /* FULL   */ { 0,   0,   0,   0 },
+            /* GOOD   */ { 2,   1,   0,   0 },
+            /* SHORT  */ { 3,   2,   0,   0 },
+        },
+        // HOOK: back foot to fine leg; short, at the body or down leg
+        {
+            /* YORKER */ { 0,   0,   0,   0 },
+            /* FULL   */ { 0,   0,   0,   0 },
+            /* GOOD   */ { 0,   0,   0,   1 },
+            /* SHORT  */ { 0,   1,   2,   3 },
+        },
+        // SLOG: back foot, across the line to midwicket; agricultural but it works
+        {
+            /* YORKER */ { 0,   0,   0,   0 },
+            /* FULL   */ { 0,   0,   1,   1 },
+            /* GOOD   */ { 0,   0,   1,   1 },
+            /* SHORT  */ { 0,   1,   2,   2 },
         },
     };
 
@@ -111,8 +167,16 @@ namespace
         0,      // STRAIGHT_DRIVE
         30,     // ON_DRIVE
         -100,   // CUT
-        -25,    // BACK_FOOT_PUNCH
+        -10,    // BACK_FOOT_PUNCH
         95,     // PULL
+        -80,    // SQUARE_DRIVE
+        -140,   // GUIDE
+        140,    // LEG_GLANCE
+        75,     // FLICK
+        -50,    // BACK_FOOT_DRIVE
+        -130,   // LATE_CUT
+        125,    // HOOK
+        50,     // SLOG
     };
 
     constexpr int ANGLE_RANDOM = 12;        // +/- degrees of variety
@@ -120,8 +184,13 @@ namespace
     // late = finer on the off side.
     constexpr int EARLY_ANGLE_SHIFT = 25;
     constexpr int LATE_ANGLE_SHIFT = -25;
-    constexpr int OFF_EDGE_ANGLE = -160;    // outside edge: behind, towards the slips
-    constexpr int LEG_EDGE_ANGLE = 155;     // inside / top edge: behind, leg side
+    // Edges that fall safe run away fine: third man / fine leg.
+    constexpr int OFF_EDGE_ANGLE = -160;    // outside edge
+    constexpr int LEG_EDGE_ANGLE = 155;     // inside / top edge
+    // Edges that are caught go (almost) straight back to the keeper / slips.
+    constexpr int OFF_CAUGHT_EDGE_ANGLE = -172;
+    constexpr int LEG_CAUGHT_EDGE_ANGLE = 174;
+    constexpr int CAUGHT_EDGE_RANDOM = 5;
 
     bool chance(bn::random& random, int percent)
     {
@@ -164,7 +233,9 @@ namespace
             case outcome_type::EDGED:
                 return { 18, 2 };
             case outcome_type::CAUGHT_BEHIND:
-                return { 20, 3 };
+                // Fast and flat enough to carry ~14 m to a keeper standing back, still
+                // around waist height (at 20 m/s it would land just short).
+                return { 26, bn::fixed(3.5) };
             case outcome_type::CAUGHT:
                 return { 20, 11 };
             default:
@@ -199,13 +270,20 @@ namespace
             angle += LATE_ANGLE_SHIFT;
         }
 
-        if(outcome.type == outcome_type::EDGED || outcome.type == outcome_type::CAUGHT_BEHIND)
+        bool leg_side_shot = shot_angles[int(shot)] > 0;
+        int spread = ANGLE_RANDOM;
+
+        if(outcome.type == outcome_type::EDGED)
         {
-            bool leg_side_shot = shot == shot_type::ON_DRIVE || shot == shot_type::PULL;
             angle = leg_side_shot ? LEG_EDGE_ANGLE : OFF_EDGE_ANGLE;
         }
+        else if(outcome.type == outcome_type::CAUGHT_BEHIND)
+        {
+            angle = leg_side_shot ? LEG_CAUGHT_EDGE_ANGLE : OFF_CAUGHT_EDGE_ANGLE;
+            spread = CAUGHT_EDGE_RANDOM;
+        }
 
-        angle += random.get_int(-ANGLE_RANDOM, ANGLE_RANDOM + 1);
+        angle += random.get_int(-spread, spread + 1);
 
         hit_profile profile = hit_profile_for(outcome);
         bn::fixed sin = bn::degrees_lut_sin_safe(angle);
@@ -223,28 +301,17 @@ shot_type make_shot(bool attacking, footwork foot, shot_direction direction)
         return foot == footwork::FRONT ? shot_type::FORWARD_DEFENCE : shot_type::BACK_DEFENCE;
     }
 
-    if(foot == footwork::FRONT)
-    {
-        switch(direction)
-        {
-            case shot_direction::OFF:
-                return shot_type::COVER_DRIVE;
-            case shot_direction::LEG:
-                return shot_type::ON_DRIVE;
-            default:
-                return shot_type::STRAIGHT_DRIVE;
-        }
-    }
-
-    switch(direction)
-    {
-        case shot_direction::OFF:
-            return shot_type::CUT;
-        case shot_direction::LEG:
-            return shot_type::PULL;
-        default:
-            return shot_type::BACK_FOOT_PUNCH;
-    }
+    // [direction][front, back], in shot_direction order.
+    constexpr shot_type shots[shot_direction_count][2] = {
+        { shot_type::STRAIGHT_DRIVE, shot_type::BACK_FOOT_PUNCH },   // STRAIGHT
+        { shot_type::COVER_DRIVE,    shot_type::BACK_FOOT_DRIVE },   // COVER
+        { shot_type::SQUARE_DRIVE,   shot_type::CUT },               // POINT
+        { shot_type::GUIDE,          shot_type::LATE_CUT },          // THIRD_MAN
+        { shot_type::LEG_GLANCE,     shot_type::HOOK },              // FINE_LEG
+        { shot_type::FLICK,          shot_type::PULL },              // SQUARE_LEG
+        { shot_type::ON_DRIVE,       shot_type::SLOG },              // MIDWICKET
+    };
+    return shots[int(direction)][foot == footwork::FRONT ? 0 : 1];
 }
 
 footwork shot_footwork(shot_type shot)
@@ -255,6 +322,10 @@ footwork shot_footwork(shot_type shot)
         case shot_type::CUT:
         case shot_type::BACK_FOOT_PUNCH:
         case shot_type::PULL:
+        case shot_type::BACK_FOOT_DRIVE:
+        case shot_type::LATE_CUT:
+        case shot_type::HOOK:
+        case shot_type::SLOG:
             return footwork::BACK;
         default:
             return footwork::FRONT;
@@ -270,7 +341,8 @@ const char* shot_name(shot_type shot)
 {
     constexpr const char* names[] = {
         "FORWARD DEFENCE", "BACK FOOT DEFENCE", "COVER DRIVE", "STRAIGHT DRIVE", "ON DRIVE",
-        "CUT", "BACK FOOT PUNCH", "PULL", "LEAVE",
+        "CUT", "BACK FOOT PUNCH", "PULL", "SQUARE DRIVE", "GUIDE", "LEG GLANCE", "FLICK",
+        "BACK FOOT DRIVE", "LATE CUT", "HOOK", "SLOG", "LEAVE",
     };
     return names[int(shot)];
 }
@@ -340,7 +412,7 @@ int shot_rating(shot_type shot, line_zone line, length_zone length)
 
 const char* rating_name(int rating)
 {
-    constexpr const char* names[] = { "WRONG SHOT", "RISKY SHOT", "GOOD CHOICE", "IDEAL SHOT" };
+    constexpr const char* names[] = { "WRONG SHOT", "RISKY SHOT", "GOOD SHOT", "IDEAL SHOT" };
     return names[rating];
 }
 

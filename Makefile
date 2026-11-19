@@ -34,7 +34,12 @@
 TARGET      	:=  cricketAdvance
 BUILD       	:=  build
 LIBBUTANO   	:=  external/butano/butano
-PYTHON      	:=  python3
+# The python.org installer on Windows provides "python", not "python3".
+ifeq ($(OS),Windows_NT)
+    PYTHON      :=  python
+else
+    PYTHON      :=  python3
+endif
 SOURCES     	:=  src
 INCLUDES    	:=  include external/butano/common/include
 DATA        	:=

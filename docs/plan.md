@@ -42,22 +42,33 @@ ball bounced; "hitting the stumps" detection.
 - [ ] **Play it a lot. Tune. Pick a control scheme.**
 
 ### Phase 2 — where we are / next up (WIP)
-Status: playable practice loop, both schemes work; real-hardware testing under way.
+Status: playable practice loop with four control schemes (Basic V2 and Pro V3 are the front-runners); real-hardware testing under way.
 Full notes and reasoning in `docs/design.md` ("Controls — playtest notes",
 "Timing feedback"). Candidate next steps, roughly in order:
-- [ ] Fix caught-behind / caught: aim catches at keeper/slips/fielder and stop the ball
+- [x] Basic V2 controls: D-pad = direction, Up = block, A ground, B loft; game picks
+      the foot. 16 rated shots (direction x foot)
+- [x] Pro V2: Basic V2 + hold L/R for front/back foot (neither = stuck on the crease)
+- [x] Removed the live timing bar and old Pro (A+B chord)
+- [ ] Playtest V2 schemes; decide whether Basic V1 goes
+- [x] Fix caught-behind / caught: aim catches at keeper/slips/fielder and stop the ball
       there; only uncaught edges run away
-- [ ] Mistimed blocks carry real risk (early = leading edge / return catch,
-      late = thin edge to keeper)
-- [ ] Sound: bounce (pitch from impact speed), bat-on-ball, edge, stumps, crowd on 4/6
-- [ ] Pro Controls v2 — prototype "scheme 4" (D-pad aims, A/R/B/L = front/back
-      foot attack/block)
+- [x] Pro V3 prototype (B front / A back, shoulder loft)
+- [x] Input cooldown after each ball
+- [ ] Basic V2 difficulty: tighten ratings / timing windows
+- [ ] Bad balls: hittable kinds (half-volley, long hop, width, on the pads), not random junk
+- [ ] Block risk by line (wide = miss, 5th stump = edge risk) and by timing grade
+      (early = leading edge / return catch, late = thin edge to keeper)
+- [ ] Banner between balls still says "PRESS A TO BOWL" — should say A/B (help line already does)
+- [ ] Shot ratings: user has notes on FF flick and leg glance (from hardware testing)
 - [ ] Show what you pressed in the after-ball summary
 - [ ] Continuous hit angle from timing error (and ball line)
-- [ ] Decide the fate of the live timing bar; try subtler timing cues
-      (length-zone pitch colours, bounce sound)
 - [ ] Phase-end: write the Phase 2 section of `docs/learnings.md` with exercises,
       save `roms/phase-2.gba`
+
+## Phase 2.5 — Sound
+- [ ] Set up Butano audio (Makefile `AUDIO`, Direct Sound samples)
+- [ ] Bounce: pitch/volume from impact speed, panning from line
+- [ ] Bat on ball (clean vs edge), stumps breaking, crowd on 4 / 6
 
 ## Phase 3 — Quick Play loop
 - [ ] Bottom scoreboard: runs, balls faced; out → game over → restart

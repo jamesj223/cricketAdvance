@@ -39,14 +39,11 @@ namespace ca
         // longer hit the stumps.
         void hit(const vec3& velocity);
 
-        // While suspended, reaching the stumps is only *remembered*, not acted on. Used
-        // while the game waits a few frames to decide what shot was pressed (A+B chord),
-        // so a shot pressed in time isn't ruled bowled just because the decision was late.
-        // Resuming applies a remembered stumps hit, unless the bat has hit the ball.
-        void suspend_stumps();
-        void resume_stumps();
+        // A fielder has it (caught): the ball stops where it is and is dead.
+        void stop() { _dead = true; }
 
         [[nodiscard]] const vec3& position() const { return _pos; }
+        [[nodiscard]] const vec3& velocity() const { return _vel; }
         [[nodiscard]] bool dead() const { return _dead; }
         [[nodiscard]] int frames() const { return _frames; }
         [[nodiscard]] bool was_hit() const { return _hit; }
@@ -71,9 +68,6 @@ namespace ca
         int _frames = 0;
         int _hit_frame = 0;
         bool _hit = false;
-        bool _stumps_live = true;
-        bool _stumps_hit_pending = false;
-        vec3 _stumps_hit_pos;
         bool _bounced = false;
         bool _reached_crease = false;
         bool _reached_stumps = false;

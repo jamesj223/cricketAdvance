@@ -17,6 +17,23 @@ namespace
     // If no shot has been played this many frames after the ball reached the back-foot
     // contact point, the batter has left it. Longer than any late timing window.
     constexpr int LEAVE_AFTER_FRAMES = 10;
+
+    // After each ball, input is ignored for this long, so a very late shot press can't
+    // bowl the next ball.
+    constexpr int COOLDOWN_FRAMES = 45;
+
+    // How far behind the bat an edge is caught: the keeper stands back to pace and up to
+    // the stumps for spin (the slips are alongside the keeper).
+    constexpr int KEEPER_BACK_MIN_KMH = 100;
+    constexpr bn::fixed KEEPER_BACK_DISTANCE = 14;
+    constexpr bn::fixed KEEPER_UP_DISTANCE = 2.5;
+
+    // A skied catch is taken as the ball comes down to about this height.
+    constexpr bn::fixed CATCH_HEIGHT = 1.8;
+
+    // When front and back foot shots rate the same, the game (picking footwork for you)
+    // goes forward to anything fuller than this, back to anything shorter.
+    constexpr bn::fixed BACK_FOOT_FROM_LENGTH = 5.5;
 }
 
 practice_scene::practice_scene() :
@@ -60,6 +77,12 @@ void practice_scene::update()
 
 void practice_scene::_update_waiting()
 {
+    if(_cooldown > 0)
+    {
+        --_cooldown;
+        return;
+    }
+
     if(bn::keypad::l_pressed() || bn::keypad::r_pressed())
     {
         int delta = bn::keypad::r_pressed() ? 1 : bowler_profiles_count - 1;
@@ -73,18 +96,7 @@ void practice_scene::_update_waiting()
         _show_help();
     }
 
-    if(bn::keypad::b_pressed())
-    {
-        _live_bar_enabled = ! _live_bar_enabled;
-        _show_help();
-
-        if(! _live_bar_enabled)
-        {
-            _live_bar.hide();
-        }
-    }
-
-    if(bn::keypad::a_pressed() || bn::keypad::start_pressed())
+    if(bn::keypad::a_pressed() || bn::keypad::b_pressed() || bn::keypad::start_pressed())
     {
         _start_delivery();
     }
@@ -102,8 +114,6 @@ void practice_scene::_start_delivery()
     _batter.reset();
     _stumps.set_broken(false);
     _timing_bar.hide();
-    _live_bar.hide();
-    _reader.reset();
     _run_up_counter = RUN_UP_FRAMES;
     _state = state::RUN_UP;
 }
@@ -122,11 +132,6 @@ void practice_scene::_release()
     _outcome = shot_outcome();
     _hit_frame = -1;
 
-    if(_live_bar_enabled)
-    {
-        _live_bar.start(_preview);
-    }
-
     bn::string<48> text(bowler_profiles[_bowler_index].name);
     bn::ostringstream stream(text);
     stream << "  " << _plan->speed_kmh << " KM/H";
@@ -142,16 +147,9 @@ void practice_scene::_update_live()
 
     if(! _shot_played && ! _flight->dead())
     {
-        if(bn::optional<shot_input> input = _reader.update(_scheme))
+        if(bn::optional<shot_intent> intent = read_shot(_scheme))
         {
-            // Timed from when the button was first pressed (see shot_reader).
-            _play_shot(input->intent, frame - input->frames_ago);
-        }
-        else if(_reader.pending())
-        {
-            // Waiting to see if it's an A+B chord: don't let the ball bowl the batter
-            // while we decide.
-            _flight->suspend_stumps();
+            _play_shot(*intent, frame);
         }
         else if(frame > _preview.back_contact_frame + LEAVE_AFTER_FRAMES)
         {
@@ -166,22 +164,14 @@ void practice_scene::_update_live()
     // Early presses wait for the ball to arrive; on-time and late ones hit it now.
     if(_hit_frame >= 0 && frame >= _hit_frame && ! _flight->was_hit() && ! _flight->dead())
     {
+        _hit_position = _flight->position();
         _flight->hit(_outcome.hit_velocity);
         _hud.set_banner(outcome_banner(_outcome));
     }
 
-    // Decision made (and any hit applied): a remembered stumps hit now counts.
-    if(! _reader.pending())
-    {
-        _flight->resume_stumps();
-    }
+    _check_catch();
 
     _ball_view.update(*_flight, _batter.z());
-
-    if(_live_bar_enabled)
-    {
-        _live_bar.update(frame);
-    }
 
     if(_flight->dead())
     {
@@ -192,10 +182,15 @@ void practice_scene::_update_live()
 void practice_scene::_play_shot(const shot_intent& intent, int frame)
 {
     footwork foot = intent.foot ? *intent.foot : _best_footwork(intent);
-    _shot = make_shot(intent.attacking, foot, intent.direction);
+    _shot = make_shot(intent.attacking, foot, intent.direction(foot));
     _shot_played = true;
 
     int rating = shot_rating(_shot, _line, _length);
+
+    if(intent.on_crease && rating > 0)
+    {
+        --rating;   // no footwork chosen: stuck on the crease
+    }
     int contact_frame = foot == footwork::FRONT ? _preview.front_contact_frame :
                                                   _preview.back_contact_frame;
     int error = frame - contact_frame;
@@ -221,8 +216,40 @@ void practice_scene::_play_shot(const shot_intent& intent, int frame)
     {
         bn::string<48> text;
         bn::ostringstream stream(text);
-        stream << timing_name(grade) << " (" << (error > 0 ? "+" : "") << error << " FRAMES)";
+        // Keep within ~232 px; "FRAMES" is dropped to make room for "ON CREASE".
+        stream << timing_name(grade) << " (" << (error > 0 ? "+" : "") << error
+               << (intent.on_crease ? ") ON CREASE" : " FRAMES)");
         _hud.set_line(4, text);
+    }
+}
+
+void practice_scene::_check_catch()
+{
+    if(! _flight->was_hit() || _flight->dead())
+    {
+        return;
+    }
+
+    const vec3& position = _flight->position();
+
+    if(_outcome.type == outcome_type::CAUGHT_BEHIND)
+    {
+        bn::fixed distance = _plan->speed_kmh >= KEEPER_BACK_MIN_KMH ? KEEPER_BACK_DISTANCE :
+                                                                       KEEPER_UP_DISTANCE;
+        bn::fixed dx = position.x - _hit_position.x;
+        bn::fixed dz = position.z - _hit_position.z;
+
+        if(mul(dx, dx) + mul(dz, dz) >= mul(distance, distance))
+        {
+            _flight->stop();
+        }
+    }
+    else if(_outcome.type == outcome_type::CAUGHT)
+    {
+        if(_flight->velocity().h < 0 && position.h <= CATCH_HEIGHT)
+        {
+            _flight->stop();
+        }
     }
 }
 
@@ -264,16 +291,25 @@ void practice_scene::_finish_ball()
     _hud.set_line(2, text);
 
     _show_tally();
+    _cooldown = COOLDOWN_FRAMES;
     _state = state::WAITING;
     _show_help();
 }
 
 footwork practice_scene::_best_footwork(const shot_intent& intent) const
 {
-    shot_type front = make_shot(intent.attacking, footwork::FRONT, intent.direction);
-    shot_type back = make_shot(intent.attacking, footwork::BACK, intent.direction);
-    bool back_better = shot_rating(back, _line, _length) > shot_rating(front, _line, _length);
-    return back_better ? footwork::BACK : footwork::FRONT;
+    shot_type front = make_shot(intent.attacking, footwork::FRONT, intent.direction(footwork::FRONT));
+    shot_type back = make_shot(intent.attacking, footwork::BACK, intent.direction(footwork::BACK));
+    int front_rating = shot_rating(front, _line, _length);
+    int back_rating = shot_rating(back, _line, _length);
+
+    if(front_rating != back_rating)
+    {
+        return back_rating > front_rating ? footwork::BACK : footwork::FRONT;
+    }
+
+    // Equally good: go by the actual length, like a batter reading it.
+    return _preview.length >= BACK_FOOT_FROM_LENGTH ? footwork::BACK : footwork::FRONT;
 }
 
 void practice_scene::_show_bowler()
@@ -298,9 +334,7 @@ void practice_scene::_show_help()
     {
         bn::string<48> controls("SEL: ");
         controls.append(scheme_name(_scheme));
-        // Shows the live bar's current state (B toggles it).
-        _hud.set_help(controls, _live_bar_enabled ? "A:BOWL L/R:BOWLER B:LIVE BAR=ON" :
-                                                    "A:BOWL L/R:BOWLER B:LIVE BAR=OFF");
+        _hud.set_help(controls, "A/B:BOWL L/R:BOWLER");
     }
     else
     {

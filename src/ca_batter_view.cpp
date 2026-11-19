@@ -21,8 +21,12 @@ namespace
             case shot_type::BACK_DEFENCE:
                 return batter_pose::BLOCK;
             case shot_type::CUT:
+            case shot_type::LATE_CUT:
+            case shot_type::GUIDE:
                 return batter_pose::CUT;
             case shot_type::PULL:
+            case shot_type::HOOK:
+            case shot_type::SLOG:
                 return batter_pose::PULL;
             case shot_type::LEAVE:
                 return batter_pose::LEAVE;

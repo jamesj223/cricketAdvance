@@ -31,36 +31,66 @@ namespace ca
         BACK,
     };
 
+    // Where the batter aims, as seen on screen. The batter faces the camera, so the D-pad
+    // maps straight onto the field: down = back past the bowler, left = off side, etc.
+    // (Up, straight behind, has no shot: Basic/Pro V2 use it for blocking.)
     enum class shot_direction
     {
-        OFF,        // screen left for a right-hander
-        STRAIGHT,
-        LEG,        // screen right
+        STRAIGHT,       // down (or no direction)
+        COVER,          // down-left
+        POINT,          // left
+        THIRD_MAN,      // up-left
+        FINE_LEG,       // up-right
+        SQUARE_LEG,     // right
+        MIDWICKET,      // down-right
     };
 
+    constexpr int shot_direction_count = 7;
+
+    // Every shot is a direction played off the front or back foot (plus the two blocks).
+    // The first eight are the original Phase 2 shots; their order matches older tables.
     enum class shot_type
     {
         FORWARD_DEFENCE,
         BACK_DEFENCE,
-        COVER_DRIVE,        // front foot, off side
+        COVER_DRIVE,        // front foot, cover
         STRAIGHT_DRIVE,     // front foot, straight
-        ON_DRIVE,           // front foot, leg side
-        CUT,                // back foot, off side
+        ON_DRIVE,           // front foot, midwicket
+        CUT,                // back foot, point
         BACK_FOOT_PUNCH,    // back foot, straight
-        PULL,               // back foot, leg side
+        PULL,               // back foot, square leg
+        SQUARE_DRIVE,       // front foot, point
+        GUIDE,              // front foot, third man
+        LEG_GLANCE,         // front foot, fine leg
+        FLICK,              // front foot, square leg
+        BACK_FOOT_DRIVE,    // back foot, cover
+        LATE_CUT,           // back foot, third man
+        HOOK,               // back foot, fine leg
+        SLOG,               // back foot, midwicket
         LEAVE,
     };
 
-    constexpr int RATED_SHOT_COUNT = 8;     // every shot except LEAVE
+    constexpr int RATED_SHOT_COUNT = 16;    // every shot except LEAVE
 
-    // What the player asked for. footwork is empty when the control scheme leaves it to
-    // the game (scheme 1), which then picks the better footwork for the ball.
+    // What the player asked for.
+    //  - direction can differ by foot: Basic V1's "off side" means a cover drive off the
+    //    front foot but a cut off the back foot. V2 schemes set both the same.
+    //  - foot is empty when the game picks the footwork (whichever suits the ball better).
+    //  - on_crease: Pro V2 with neither (or both) feet chosen. The game picks the better
+    //    foot, but the shot is a notch worse: you were stuck on the crease.
     struct shot_intent
     {
-        bool attacking;
-        shot_direction direction;
+        bool attacking = true;
+        shot_direction front_direction = shot_direction::STRAIGHT;
+        shot_direction back_direction = shot_direction::STRAIGHT;
         bn::optional<footwork> foot;
-        bool lofted;
+        bool lofted = false;
+        bool on_crease = false;
+
+        [[nodiscard]] shot_direction direction(footwork for_foot) const
+        {
+            return for_foot == footwork::FRONT ? front_direction : back_direction;
+        }
     };
 
     [[nodiscard]] shot_type make_shot(bool attacking, footwork foot, shot_direction direction);

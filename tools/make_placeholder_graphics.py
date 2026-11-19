@@ -224,23 +224,6 @@ def make_timing_bar():
     img.save(OUT / "timing_marker.bmp")
 
 
-# --- Live timing bar ---------------------------------------------------------------------
-# Track: 32x8 piece of a thin line (tiled across the bottom of the screen).
-# Marks: 8x8 frames = 0 tick (ideal contact moment), 1 mover (the ball's progress).
-def make_live_bar():
-    img = indexed((32, 8), [MAGENTA, (70, 70, 70), (130, 130, 130)])
-    draw = ImageDraw.Draw(img)
-    draw.line([(0, 3), (31, 3)], fill=2)
-    draw.line([(0, 4), (31, 4)], fill=1)
-    img.save(OUT / "live_track.bmp")
-
-    img = indexed((8, 16), [MAGENTA, (60, 200, 70), (255, 255, 255), (40, 40, 40)])
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([3, 1, 4, 6], fill=1)                    # tick
-    draw.rectangle([2, 8 + 1, 5, 8 + 6], fill=2, outline=3)  # mover
-    img.save(OUT / "live_marks.bmp")
-
-
 # --- Background --------------------------------------------------------------------------
 BG_PALETTE = [
     MAGENTA,          # 0 unused/transparent
@@ -315,7 +298,6 @@ if __name__ == "__main__":
     make_batter()
     make_stumps()
     make_timing_bar()
-    make_live_bar()
     make_background(preview="--preview" in sys.argv)
     for name, (x, z, h) in {
         "bowler stumps base": (0, 0, 0),
