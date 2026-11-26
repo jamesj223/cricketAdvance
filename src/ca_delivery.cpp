@@ -189,9 +189,17 @@ bool ball_flight::update()
         if(bn::abs(at_stumps.x) <= STUMP_HALF_WIDTH + BALL_RADIUS &&
                 at_stumps.h <= STUMP_HEIGHT + BALL_RADIUS)
         {
-            _hit_stumps = true;
-            _pos = at_stumps;
-            _dead = true;
+            if(_stumps_live)
+            {
+                _hit_stumps = true;
+                _pos = at_stumps;
+                _dead = true;
+            }
+            else
+            {
+                _stumps_hit_pending = true;
+                _stumps_hit_pos = at_stumps;
+            }
         }
     }
 
@@ -222,6 +230,31 @@ void ball_flight::hit(const vec3& velocity)
     _friction = 0.85;
     _hit = true;
     _hit_frame = _frames;
+    _stumps_hit_pending = false;
+}
+
+void ball_flight::suspend_stumps()
+{
+    _stumps_live = false;
+}
+
+void ball_flight::resume_stumps()
+{
+    if(_stumps_live)
+    {
+        return;
+    }
+
+    _stumps_live = true;
+
+    if(_stumps_hit_pending && ! _hit)
+    {
+        _hit_stumps = true;
+        _pos = _stumps_hit_pos;
+        _dead = true;
+    }
+
+    _stumps_hit_pending = false;
 }
 
 delivery_preview preview_delivery(const delivery_plan& plan)

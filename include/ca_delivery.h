@@ -39,6 +39,12 @@ namespace ca
         // longer hit the stumps.
         void hit(const vec3& velocity);
 
+        // ARCHIVE BUILD: while suspended, reaching the stumps is only *remembered*. Used
+        // by Pro V1's A+B chord, which waits a few frames to decide which shot was
+        // pressed. Resuming applies a remembered stumps hit, unless the bat hit the ball.
+        void suspend_stumps();
+        void resume_stumps();
+
         // A fielder has it (caught): the ball stops where it is and is dead.
         void stop() { _dead = true; }
 
@@ -68,6 +74,9 @@ namespace ca
         int _frames = 0;
         int _hit_frame = 0;
         bool _hit = false;
+        bool _stumps_live = true;
+        bool _stumps_hit_pending = false;
+        vec3 _stumps_hit_pos;
         bool _bounced = false;
         bool _reached_crease = false;
         bool _reached_stumps = false;

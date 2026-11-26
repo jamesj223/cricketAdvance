@@ -39,7 +39,7 @@ practice_scene::practice_scene() :
     _show_bowler();
     _show_tally();
     _show_help();
-    _hud.set_banner("PRESS A/B TO BOWL");
+    _hud.set_banner("PHASE 2 ARCHIVE");
 }
 
 void practice_scene::update()
@@ -111,6 +111,7 @@ void practice_scene::_start_delivery()
     _batter.reset();
     _stumps.set_broken(false);
     _timing_bar.hide();
+    _reader.reset();
     _run_up_counter = RUN_UP_FRAMES;
     _state = state::RUN_UP;
 }
@@ -144,9 +145,16 @@ void practice_scene::_update_live()
 
     if(! _shot_played && ! _flight->dead())
     {
-        if(bn::optional<shot_intent> intent = read_shot(_scheme))
+        if(bn::optional<shot_input> input = _reader.update(_scheme))
         {
-            _play_shot(*intent, frame);
+            // Timed from when the button was first pressed (Pro V1's A+B chord).
+            _play_shot(input->intent, frame - input->frames_ago);
+        }
+        else if(_reader.pending())
+        {
+            // Waiting to see if it's an A+B chord: don't let the ball bowl the batter
+            // while we decide.
+            _flight->suspend_stumps();
         }
         else if(frame > _preview.back_contact_frame + LEAVE_AFTER_FRAMES)
         {
@@ -166,6 +174,12 @@ void practice_scene::_update_live()
         _hud.set_banner(outcome_banner(_outcome));
     }
 
+    // Decision made (and any hit applied): a remembered stumps hit now counts.
+    if(! _reader.pending())
+    {
+        _flight->resume_stumps();
+    }
+
     _check_catch();
 
     _ball_view.update(*_flight, _batter.z());
@@ -180,11 +194,18 @@ void practice_scene::_play_shot(const shot_intent& intent, int frame)
 {
     // Basic: the game reads the length, like a batter's instinct (not always the best
     // shot; Pro players can beat it by choosing the foot themselves).
-    footwork foot = intent.foot ? *intent.foot : _natural_footwork();
-    _shot = make_shot(intent.attacking, foot, intent.direction);
+    footwork foot = intent.foot ? *intent.foot :
+                    intent.best_footwork || intent.on_crease ? _best_footwork(intent) :
+                                                               _natural_footwork();
+    _shot = make_shot(intent.attacking, foot, intent.direction_for(foot));
     _shot_played = true;
 
     int rating = shot_rating(_shot, _line, _length);
+
+    if(intent.on_crease && rating > 0)
+    {
+        --rating;   // Pro V2: no footwork chosen, stuck on the crease
+    }
     int contact_frame = foot == footwork::FRONT ? _preview.front_contact_frame :
                                                   _preview.back_contact_frame;
     int error = frame - contact_frame;
@@ -210,7 +231,9 @@ void practice_scene::_play_shot(const shot_intent& intent, int frame)
     {
         bn::string<48> text;
         bn::ostringstream stream(text);
-        stream << timing_name(grade) << " (" << (error > 0 ? "+" : "") << error << " FRAMES)";
+        // Keep within ~232 px; "FRAMES" is dropped to make room for "ON CREASE".
+        stream << timing_name(grade) << " (" << (error > 0 ? "+" : "") << error
+               << (intent.on_crease ? ") ON CREASE" : " FRAMES)");
         _hud.set_line(4, text);
     }
 }
@@ -286,6 +309,22 @@ void practice_scene::_finish_ball()
     _cooldown = COOLDOWN_FRAMES;
     _state = state::WAITING;
     _show_help();
+}
+
+footwork practice_scene::_best_footwork(const shot_intent& intent) const
+{
+    // The original auto-footwork: whichever foot's shot rates better for this ball.
+    shot_type front = make_shot(intent.attacking, footwork::FRONT, intent.direction_for(footwork::FRONT));
+    shot_type back = make_shot(intent.attacking, footwork::BACK, intent.direction_for(footwork::BACK));
+    int front_rating = shot_rating(front, _line, _length);
+    int back_rating = shot_rating(back, _line, _length);
+
+    if(front_rating != back_rating)
+    {
+        return back_rating > front_rating ? footwork::BACK : footwork::FRONT;
+    }
+
+    return _natural_footwork();
 }
 
 footwork practice_scene::_natural_footwork() const

@@ -75,12 +75,29 @@ namespace ca
 
     // What the player asked for. foot is empty when the game picks the footwork (from
     // the length, like a batter's instinct).
+    //
+    // ARCHIVE BUILD extras, for the older Phase 2 schemes:
+    //  - back_direction: the old 3-way schemes' "off side" is a cover drive off the front
+    //    foot but a cut off the back (likewise on drive / pull).
+    //  - best_footwork: when the game picks, take the better-rated foot (the original
+    //    behaviour) instead of reading the length.
+    //  - on_crease: Pro V2 with neither (or both) feet held: the game picks the better
+    //    foot, but the shot is rated one notch worse.
     struct shot_intent
     {
         bool attacking = true;
         shot_direction direction = shot_direction::STRAIGHT;
         bn::optional<footwork> foot;
         bool lofted = false;
+
+        bn::optional<shot_direction> back_direction;
+        bool best_footwork = false;
+        bool on_crease = false;
+
+        [[nodiscard]] shot_direction direction_for(footwork for_foot) const
+        {
+            return for_foot == footwork::BACK && back_direction ? *back_direction : direction;
+        }
     };
 
     [[nodiscard]] shot_type make_shot(bool attacking, footwork foot, shot_direction direction);

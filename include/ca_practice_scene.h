@@ -41,6 +41,7 @@ namespace ca
         batter_view _batter;
         stumps_view _stumps;
         timing_bar _timing_bar;
+        shot_reader _reader;
         debug_hud _hud;
         bn::random _random;
 
@@ -48,7 +49,7 @@ namespace ca
         int _run_up_counter = 0;
         int _cooldown = 0;      // frames left ignoring input after a ball
         int _bowler_index = 0;
-        control_scheme _scheme = control_scheme::BASIC;
+        control_scheme _scheme = control_scheme::BASIC_V2;
 
         // The current delivery.
         bn::optional<delivery_plan> _plan;
@@ -78,6 +79,7 @@ namespace ca
         void _finish_ball();
 
         [[nodiscard]] footwork _natural_footwork() const;
+        [[nodiscard]] footwork _best_footwork(const shot_intent& intent) const;
         void _show_bowler();
         void _show_tally();
         void _show_help();

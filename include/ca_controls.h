@@ -1,22 +1,26 @@
 #ifndef CA_CONTROLS_H
 #define CA_CONTROLS_H
 
-// Control schemes. Each one ONLY maps buttons to a shot_intent; the timing and outcome
-// logic never knows which scheme was used. See docs/design.md ("Controls").
+// ARCHIVE BUILD: every control scheme tried during Phase 2, selectable with SELECT, for
+// looking back and comparing. The main game keeps only Basic (V2) and Pro (V3).
+// Each scheme ONLY maps buttons to a shot_intent; timing and outcomes don't know which
+// scheme was used. Older schemes predate the 16-shot model, so they reach fewer shots.
 //
-// Both aim with the D-pad, which maps onto the field as seen on screen (the batter faces
-// the camera): down = straight, down-left = cover, left = point, up-left = third man,
-// up-right = fine leg, right = square leg, down-right = midwicket. Up = block.
-// Hold L or R = lofted.
-//
-//   BASIC (V2): A or B plays the shot. The game picks front or back foot from the length
-//               (front to full balls, back to short), not always the best-rated one.
-//   PRO (V3):   the button picks the foot AND times the shot: B = front foot, A = back
-//               foot (B sits lower on the GBA = forward, down the screen). A and B on
-//               the same frame: the game picks the foot, as in Basic.
-//
-// Older schemes tried in Phase 2 are in git history: Pro V1 (A+B chord loft) in 7f6cdff,
-// Basic V1 and Pro V2 in 2900f36.
+//   1. SCHEME 1   Left/Right = off/leg side (no footwork: the game picks the better
+//                 foot). A = hit, B = block. No loft. The first "simple" idea.
+//   2. SCHEME 2   D-pad Up/Down = back/front foot (neither = front), L/R shoulders =
+//                 off/leg side. A = hit, B = block. No loft.
+//   3. BASIC V1   D-pad 8-way: Left/Right = side, Up = back foot, Down = front foot
+//                 (neither = game picks). A = hit, B = block, hold R = loft.
+//   4. PRO V1     Scheme 2 plus A+B together = lofted hit (waits up to 3 frames for
+//                 the second button; the shot is timed from the first press).
+//   5. PRO V2     D-pad aims (7 directions, Up = block). Hold L = front foot, R = back
+//                 foot (neither/both = stuck on the crease: a notch worse). A = ground,
+//                 B = lofted.
+//   6. BASIC V2   D-pad aims, Up = block, A/B = hit, hold L/R = loft. The game picks the
+//                 foot from the length. (Kept as "Basic".)
+//   7. PRO V3     D-pad aims, Up = block. B = front foot, A = back foot, hold L/R =
+//                 loft. (Kept as "Pro".)
 
 #include "bn_optional.h"
 #include "ca_shots.h"
@@ -25,20 +29,52 @@ namespace ca
 {
     enum class control_scheme
     {
-        BASIC,
-        PRO,
+        SCHEME_1,
+        SCHEME_2,
+        BASIC_V1,
+        PRO_V1,
+        PRO_V2,
+        BASIC_V2,
+        PRO_V3,
     };
 
-    constexpr int control_scheme_count = 2;
+    constexpr int control_scheme_count = 7;
 
     [[nodiscard]] const char* scheme_name(control_scheme scheme);
 
     // One short line describing the controls, for the on-screen help.
     [[nodiscard]] const char* scheme_help(control_scheme scheme);
 
-    // Reads a shot from the keypad: call once per frame while the ball is live. Returns
-    // the shot on the frame a shot button is pressed.
-    [[nodiscard]] bn::optional<shot_intent> read_shot(control_scheme scheme);
+    struct shot_input
+    {
+        shot_intent intent;
+        int frames_ago;     // how long ago the shot was actually pressed (Pro V1's chord)
+    };
+
+    // Reads shots from the keypad. Stateful only because of Pro V1's A+B chord: after the
+    // first of A/B is pressed, it waits up to CHORD_FRAMES for the other one.
+    class shot_reader
+    {
+
+    public:
+        static constexpr int CHORD_FRAMES = 3;
+
+        // Call once per frame while the ball is live.
+        [[nodiscard]] bn::optional<shot_input> update(control_scheme scheme);
+
+        // True while waiting to see whether a press becomes an A+B chord.
+        [[nodiscard]] bool pending() const { return _pending; }
+
+        void reset();
+
+    private:
+        shot_intent _intent;
+        bool _pending = false;
+        bool _first_was_attack = false;
+        int _waited = 0;
+
+        [[nodiscard]] bn::optional<shot_input> _update_pro_v1();
+    };
 }
 
 #endif
