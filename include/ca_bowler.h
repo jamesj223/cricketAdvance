@@ -58,31 +58,45 @@ namespace ca
         // --- Release point --------------------------------------------------------------
         // Distance of the hand from the middle stump at release (always positive).
         // Which side it's on comes from `arm` and `side` (see release_x() below).
-        // Guide: over the wicket 0.35-0.5, round the wicket 0.5-0.7.
+        // Guide: over the wicket, spinners 0.3-0.4, pace 0.4-0.5.
+        // KNOWN LIMITATION: round the wicket the hand is about a shoulder-width (~0.25 m)
+        // further out (0.55-0.7), because the body is between the arm and the stumps.
+        // That is NOT derived: if you change `side`, change this too. Fine while each
+        // bowler's side is fixed; revisit if bowlers can switch sides mid-spell (e.g.
+        // store the over-the-wicket width and add the shoulder offset in release_x()).
         bn::fixed release_width;
         // Height of the ball at release: roughly the bowler's height + arm, 2.0-2.4 m.
         // Taller = steeper angle into the pitch = more bounce.
         bn::fixed release_h;
 
         // --- Accuracy -------------------------------------------------------------------
-        // Length: how far in front of the batter's stumps the ball bounces.
-        //   yorker 0-2   full 2-4   good 4-6.5   back of a length 6.5-8   short 8+
+        // Length: how far in front of the batter's stumps the ball bounces, metres.
+        //   pace: yorker 0-2   full 2-4      good 4-6.5    short 6.5+ (long hop 8+)
+        //   spin: yorker 0-1.25 full 1.25-3  good 3-4.75   short 4.75+
+        // (These are the zones the shot ratings use: classify_length in ca_shots.cpp.)
         // Swing bowlers pitch it up (full) to give the ball time to swing; spinners
         // bowl fuller than seamers because the ball is slower.
         bn::fixed target_length;
         // Most lengths land within about half of this either side; never beyond it.
         bn::fixed length_spread;
-        // Line: x where the ball bounces. Stumps are at -0.11 (off), 0 (middle),
-        // +0.11 (leg). The classic "corridor of uncertainty" just outside off stump is
-        // about -0.2 to -0.35. Note: movement after the bounce shifts where the ball
-        // actually passes the batter.
+        // Line: x where the ball bounces, metres. Right-handed batter: -x = off side.
+        //   wide outside off  < -0.6   (beyond about -0.9 would be a wide)
+        //   outside off       -0.6 to -0.15
+        //     "corridor of uncertainty" (4th-5th stump) about -0.2 to -0.35
+        //   off stump  -0.114   middle  0   leg stump  +0.114   (stumps span -0.15..+0.15
+        //   counting the ball's radius: anything in there is "on the stumps")
+        //   down leg          > +0.15  (beyond about +0.9 would be a wide)
+        // These are the zones the shot ratings use (classify_line, which judges where the
+        // ball passes the batter). Movement after the bounce (seam/turn) shifts it: an
+        // off-break pitched outside off turns in to the stumps; a leg-break pitched on
+        // leg stump turns away to outside off.
         bn::fixed target_line;
         bn::fixed line_spread;
         // Chance (0-100) of a loose ball that ignores the above. Higher = easier bowler.
         // Real bowlers rarely bowl junk; a bad ball just misses line or length enough to
         // be put away. Which kind comes from bad_ball_mix.
         int bad_ball_percent;
-        // Relative weights of the kinds of bad ball (see bad_ball_kind in ca_delivery.cpp):
+        // Relative weights of the kinds of bad ball (see pick_bad_ball in ca_delivery.cpp):
         //   half-volley (over-pitched, around off/middle), long hop (dragged down short),
         //   width (good-ish length, too wide outside off), pads (full, drifting onto the legs).
         // e.g. leg spinners drag it down (long hops); inswingers stray onto the pads.
@@ -163,6 +177,28 @@ namespace ca
             .air_movement = 0,              // drift, either way
             .air_movement_variation = 1.0,
             .bounce_movement = 1.4,         // off-break: turns into a right-hander
+            .bounce_movement_variation = 0.6,
+            .bounce_restitution = 0.45,
+            .bounce_friction = 0.80,
+        },
+        {
+            .name = "RIGHT-ARM LEG SPIN",
+            .type = bowler_type::SPIN,
+            .arm = bowling_arm::RIGHT,
+            .side = wicket_side::OVER,
+            .speed_min_kmh = 70,
+            .speed_max_kmh = 85,
+            .release_width = 0.40,
+            .release_h = 2.0,
+            .target_length = 3.5,
+            .length_spread = 2.0,
+            .target_line = 0.11,           // pitch on or around leg stump, turn towards off
+            .line_spread = 1.0,
+            .bad_ball_percent = 10,
+            .bad_ball_mix = { .half_volley = 3, .long_hop = 4, .width = 1, .pads = 1 },
+            .air_movement = 0,              // drift, either way
+            .air_movement_variation = 1.0,
+            .bounce_movement = -2.4,         // leg-break: turns into a right-hander
             .bounce_movement_variation = 0.6,
             .bounce_restitution = 0.45,
             .bounce_friction = 0.80,

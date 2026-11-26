@@ -43,7 +43,7 @@ ball bounced; "hitting the stumps" detection.
 
 ### Phase 2 — where we are / next up (WIP)
 Status: playable practice loop with two control schemes, Basic (V2) and Pro (V3) — they
-drop the version numbers from Phase 2.5. Real-hardware testing under way.
+drop the version numbers in Phase 3. Real-hardware testing under way.
 Full notes and reasoning in `docs/design.md` ("Controls — playtest notes",
 "Timing feedback"). Candidate next steps, roughly in order:
 - [x] Basic V2 controls: D-pad = direction, Up = block, A ground, B loft; game picks
@@ -69,12 +69,15 @@ Full notes and reasoning in `docs/design.md` ("Controls — playtest notes",
 - [x] Phase-end: write the Phase 2 section of `docs/learnings.md` with exercises,
       save `roms/phase-2.gba`
 
-## Phase 2.5 — Sound
+## Phase 3 — Quick Play loop
+Sound first (was going to be a Phase 2.5; folded in as step one):
 - [ ] Set up Butano audio (Makefile `AUDIO`, Direct Sound samples)
 - [ ] Bounce: pitch/volume from impact speed, panning from line
 - [ ] Bat on ball (clean vs edge), stumps breaking, crowd on 4 / 6
 
-## Phase 3 — Quick Play loop
+- [ ] Drop the V2/V3 from the scheme names: just "Basic" and "Pro"
+
+Then the game loop:
 - [ ] Bottom scoreboard: runs, balls faced; out → game over → restart
 - [ ] After-contact presentation: follow ball off screen → field view (test transitions)
 - [ ] Simple fielders (squares) that slide to the ball; auto running; caught
@@ -86,15 +89,25 @@ Full notes and reasoning in `docs/design.md` ("Controls — playtest notes",
 - [ ] Pace vs spin, swing, seam, turn; bowler tells
 - [ ] Bowler variety: swing/seam, in/outswing, off/leg spin, left/right arm
 - [ ] Per-game attack of ~5 bowlers rotating in spells
+- [ ] Random bowler generation: archetype templates (today's profiles) + random
+      variation + generated names
 - [ ] Difficulty levels (pace, movement, fewer bad balls)
 - [ ] Confidence and fatigue meters (top of screen)
 - [ ] Difficulty curve over a run (bowlers get harder)
 - [ ] Default field per bowler; field changes at start of over based on scoring;
       show field view at the start of each over
 
-## Phase 5 — Polish
+## Phase 5 — Match modes
+- [ ] T20 / ODI / Test: 10 wickets (batting line-up, next batter in), over limits
+      20 / 50 / unlimited, full scoreboard (runs / wickets, overs)
+- [ ] Match setup screen: pitch / conditions (Random default) and bowlers (Random
+      default, or a famous attack)
+- [ ] Pitch and weather conditions: green = seam, cloudy = swing, dry = spin
+- [ ] Famous bowling attacks (one per nation; see design doc "Game mode")
+
+## Phase 6 — Polish
 - [ ] Pixel art (batter, bowler, pitch, fielders)
 - [ ] Title screen, menus
 - [ ] Options: ball colour (red / white / pink)
 - [ ] Fancier event animations (full-screen wicket, milestones)
-- [ ] Sound and music
+- [ ] Music (sound effects come in Phase 3)

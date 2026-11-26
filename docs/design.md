@@ -32,7 +32,29 @@ marked **Open** and get settled by prototyping, not by debate.
 **Decided — Quick Play (single batter, endless):** one batter faces deliveries until out.
 Score as many runs as possible. High score saved.
 
-Later, maybe: chase-scenario ladder ("18 off 12, 2 wickets left"), T20/ODI/TEST innings.
+**Planned modes:**
+- **Quick Play** — 1 wicket, bat until you're out, high score saved. (Phase 3.)
+- **Match: T20 / ODI / Test** — 10 wickets (a batting line-up), over limits of 20 / 50 /
+  unlimited. Before the match, choose:
+  - **Pitch / conditions:** Random (default), or a specific one (green, dry, flat,
+    cloudy... see "Pitch and weather conditions").
+  - **Bowlers:** Random (default: a generated attack), or a **famous bowling attack**.
+- Later, maybe: chase-scenario ladder ("18 off 12, 2 wickets left").
+
+**Famous bowling attacks** (one per nation ideally — strong *and* memorable; names in
+Ricky Ponting Cricket-style misspellings). Pencilled in:
+- **05 ENG:** Flintoff, Jones, Harmison, Hoggard, Giles(?)
+- **07 AUS:** McGrath, Lee, Warne, Clark, Symonds
+- **8X WI:** the famous quartet — Roberts, Holding, Garner, Marshall — plus Croft as the
+  fifth. (Peak years overlap around 1980-83; the label can stay "8X".)
+- **9X PAK:** Wasim, Waqar, Imran, Mushtaq, Aaqib. (Waqar missed the 1992 World Cup, so
+  it's a 90s dream attack rather than the '92 side — you have to have Wasim *and* Waqar.)
+- **96 SL** (World Cup): Vaas, Wickramasinghe, Muralitharan, Dharmasena, Jayasuriya
+- **12 SA** (No. 1 Test side): Steyn, Philander, Morkel, Kallis, Tahir
+- **21 NZ** (inaugural World Test Championship winners): Southee, Boult, Jamieson, Wagner,
+  de Grandhomme. (A Hadlee-era side was considered, but Hadlee aside the attack is less
+  memorable.)
+- **24 IND:** Bumrah, Ashwin, Jadeja, Siraj, Kuldeep
 
 ## Camera / presentation
 
@@ -114,7 +136,10 @@ run-up and delivery stride (the ball visible in the hand before release) should 
 - **Pre-made bowling attacks — later:** themed by country and era (e.g. "2005 England",
   "2007 Australia", "1980s West Indies"): the right mix of pace, swing and spin for
   that side. Names: affectionate Ricky Ponting Cricket-style misspellings of the era's
-  players (user's call).
+  players (user's call). Could drive a **challenge mode** (e.g. "survive 2005 England").
+- **The current `bowler_profiles` are temporary.** They become the *archetype templates*
+  (fast seam, off spin, leg spin, left-arm swing, ...) that random bowlers are generated
+  from; pre-made teams are hand-written profiles in the same format.
 - **Pitch and weather conditions — later:** variety per game. Green pitch = more seam,
   cloudy = more swing, dry = more spin (and maybe bounce: hard/bouncy vs slow/low).
   Fits the profile model as multipliers on air_movement / bounce_movement / restitution.
@@ -130,6 +155,10 @@ Start with generic pace and spin. Later ideas:
   inswing / outswing. Split spin into off spin / leg spin.
 - **Left- and right-arm** bowlers, **over / round the wicket** (`arm` and `side` fields
   exist; release side is derived from them). Later: bowlers switching sides mid-spell.
+  Note: `release_width` is *not* derived from the side — round the wicket should be
+  ~0.25 m wider (the body sits between arm and stumps), so changing `side` means also
+  changing the width. Fine while sides are fixed; fix it (derive the round-the-wicket
+  offset in `release_x()`) if bowlers ever switch sides. Documented in `ca_bowler.h`.
 - **Bowling attack per game:** at the start of each game, (semi-)randomly pick ~5
   bowlers and rotate them in realistic spells. Gives each run variety.
 - **Names:** made-up, nostalgic-style player names (initial + surname, e.g. "M Hyder").
@@ -404,6 +433,21 @@ effectively an assisted/easy mode.
   variant, toggled as an option.
 
 ### Later ideas from Phase 2 (not doing now)
+
+- **Ramp and uppercut = "lofted block"** (user): Up + loft is currently just a block, and
+  Up is the one direction with no shot (straight behind). Make it the cheeky shots:
+  front foot = **ramp / scoop** over the keeper (full balls, on the stumps / legs),
+  back foot = **uppercut** over the slips / third man (short and wide outside off).
+  Always aerial, high risk / high reward (top edge, caught behind or at fine leg / third
+  man). Needs 2 more shots in the table (18 rated), two rating rows, angles ~180 and
+  ~-150, and fits the existing schemes with no new buttons (Up + L/R held).
+- **Lofted shots that go along the ground:** a lofted shot that isn't a six or a catch
+  gets the plain "runs" / "four" hit (1 m/s upwards), so it skids along the ground. The
+  result is decided first and the flight is picked from the *result*, not from whether
+  you lofted it. Real mistimed lofted shots do happen, but they'd look more like a
+  one-bounce lob, a skier that drops short, or a flat hit that bounces before the rope.
+  Fix when fielders arrive (aerial vs ground then matters for catches): give lofted
+  results their own, higher hit profiles (e.g. lofted four: up ~7 m/s, lands then runs).
 
 - **Show what you pressed** after the ball — decided the shot description is enough.
 - **Continuous hit angle:** each frame early/late turns the ball a few more degrees
