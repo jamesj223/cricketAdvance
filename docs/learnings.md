@@ -197,7 +197,7 @@ Reading order: `ca_world.h` → `ca_bowler.h` → `ca_delivery.h/.cpp` → `ca_c
 
 The longest phase so far, and the first one driven mostly by playtesting: build something,
 play it (on a laptop, then real hardware), change it. Reading order: `ca_shots.h` →
-`ca_controls.h` → `ca_practice_scene.cpp` (`_play_shot` is the heart of it).
+`ca_controls.h` → `ca_batting_scene.cpp` (`_play_shot` is the heart of it).
 
 ### The batting pipeline
 

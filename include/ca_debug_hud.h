@@ -1,8 +1,8 @@
 #ifndef CA_DEBUG_HUD_H
 #define CA_DEBUG_HUD_H
 
-// Prototype HUD: info lines (top-left), a big centred banner ("FOUR!") and help lines
-// (bottom). Text is made of sprites, so it's only regenerated when something changes.
+// Prototype HUD: info lines, a big centred banner ("FOUR!") and a help line (bottom,
+// above the scoreboard). Text is made of sprites, so it's only regenerated when something changes.
 
 #include "bn_string.h"
 #include "bn_vector.h"
@@ -22,7 +22,10 @@ namespace ca
         void set_line(int index, const bn::string_view& text);
         void clear_lines();
         void set_banner(const bn::string_view& text);
-        void set_help(const bn::string_view& line_1, const bn::string_view& line_2);
+
+        // A second banner line under the first ("GAME OVER" under "BOWLED!").
+        void set_sub_banner(const bn::string_view& text);
+        void set_help(const bn::string_view& text);
 
         // Call once per frame.
         void update();
@@ -32,7 +35,8 @@ namespace ca
         bn::sprite_text_generator _big;
         bn::string<48> _lines[LINES];
         bn::string<24> _banner;
-        bn::string<48> _help[2];
+        bn::string<24> _sub_banner;
+        bn::string<48> _help;
         bn::vector<bn::sprite_ptr, 80> _sprites;    // ~5 letters per sprite
         bool _dirty = true;
     };

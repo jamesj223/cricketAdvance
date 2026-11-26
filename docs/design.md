@@ -34,6 +34,11 @@ Score as many runs as possible. High score saved.
 
 **Planned modes:**
 - **Quick Play** — 1 wicket, bat until you're out, high score saved. (Phase 3.)
+  Two random bowlers per innings, one from each end, swapping every over. High score
+  saved per control scheme (Pro is harder, so it gets its own).
+- **Practice** — the Phase 2 nets as their own mode: pick the bowler (L/R), endless,
+  score shown as runs/wickets. **Open:** which batting aids (timing bar, shot rating,
+  "what the ball was") stay in the real modes. For now both modes have all of them.
 - **Match: T20 / ODI / Test** — 10 wickets (a batting line-up), over limits of 20 / 50 /
   unlimited. Before the match, choose:
   - **Pitch / conditions:** Random (default), or a specific one (green, dry, flat,

@@ -289,8 +289,29 @@ def make_background(preview=False):
         strip = Image.open(OUT / "batter.bmp").convert("RGB")
         strip.resize((strip.width * 6, strip.height * 6), Image.NEAREST).save(ROOT / "build" / "batter_preview.png")
         # Screen area of the 256x256 bg (centred): x 8..248, y 48..208. Scale up 3x.
-        shot = img.convert("RGB").crop((8, 48, 248, 208)).resize((720, 480), Image.NEAREST)
+        full = img.convert("RGB")
+        board = Image.open(OUT / "scoreboard.bmp")
+        full.paste(board.convert("RGB"), (0, 0), board.point(lambda i: 255 if i else 0, "L"))
+        shot = full.crop((8, 48, 248, 208)).resize((720, 480), Image.NEAREST)
         shot.save(ROOT / "build" / "preview.png")
+
+
+# --- Scoreboard strip ----------------------------------------------------------------------
+# A TV-style bar along the bottom of the screen, on its own background layer (drawn over
+# the pitch and under the text). Everything else is colour 0 = transparent.
+SCOREBOARD_TOP = 66     # screen y (centred coords) of the strip's top edge; bottom = 80
+
+
+def make_scoreboard():
+    size = 256
+    img = indexed(size, [MAGENTA, (16, 24, 52), (210, 30, 30), (36, 48, 90)])
+    draw = ImageDraw.Draw(img)
+    top = SCOREBOARD_TOP + 128
+    bottom = 80 + 128 - 1
+    draw.rectangle([0, top, size - 1, bottom], fill=1)          # navy band
+    draw.line([(0, top), (size - 1, top)], fill=2)              # ball-red accent
+    draw.line([(0, top + 1), (size - 1, top + 1)], fill=3)      # soft highlight under it
+    img.save(OUT / "scoreboard.bmp")
 
 
 if __name__ == "__main__":
@@ -298,6 +319,7 @@ if __name__ == "__main__":
     make_batter()
     make_stumps()
     make_timing_bar()
+    make_scoreboard()
     make_background(preview="--preview" in sys.argv)
     for name, (x, z, h) in {
         "bowler stumps base": (0, 0, 0),

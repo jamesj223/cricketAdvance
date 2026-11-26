@@ -31,6 +31,7 @@ void debug_hud::clear_lines()
     }
 
     _banner.clear();
+    _sub_banner.clear();
     _dirty = true;
 }
 
@@ -40,10 +41,15 @@ void debug_hud::set_banner(const bn::string_view& text)
     _dirty = true;
 }
 
-void debug_hud::set_help(const bn::string_view& line_1, const bn::string_view& line_2)
+void debug_hud::set_sub_banner(const bn::string_view& text)
 {
-    _help[0] = line_1;
-    _help[1] = line_2;
+    _sub_banner = text;
+    _dirty = true;
+}
+
+void debug_hud::set_help(const bn::string_view& text)
+{
+    _help = text;
     _dirty = true;
 }
 
@@ -58,7 +64,8 @@ void debug_hud::update()
     _sprites.clear();
 
     // Line positions keep clear of the batter (top centre) and the ball's path.
-    // Line 0: top-left. Line 1: top-right. Lines 2-4: lower-left, above the timing bar.
+    // Line 0: top-left. Line 1: top-right (unused since the scoreboard). Lines 2-4:
+    // lower-left, above the timing bar.
     struct position
     {
         int x;
@@ -91,12 +98,17 @@ void debug_hud::update()
     }
 
     _small.set_center_alignment();
-    _small.generate(0, 58, _help[0], _sprites);
-    _small.generate(0, 67, _help[1], _sprites);
+    _small.generate(0, 58, _help, _sprites);     // just above the scoreboard strip
 
+    // Two banner lines, between the batter (above) and the info lines (below).
     if(! _banner.empty())
     {
-        _big.generate(0, -14, _banner, _sprites);
+        _big.generate(0, -18, _banner, _sprites);
+    }
+
+    if(! _sub_banner.empty())
+    {
+        _big.generate(0, -2, _sub_banner, _sprites);
     }
 }
 

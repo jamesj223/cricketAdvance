@@ -1,4 +1,4 @@
-#include "ca_practice_scene.h"
+#include "ca_batting_scene.h"
 
 #include "bn_math.h"
 #include "bn_keypad.h"
@@ -29,6 +29,11 @@ namespace
     constexpr int BOUNDARY_CHEER_DELAY_FRAMES = 30;
     constexpr int SIX_CHEER_DELAY_FRAMES = 40;
 
+    // After a dismissal, how long its banner ("CAUGHT!") shows before "GAME OVER".
+    constexpr int GAME_OVER_BANNER_DELAY_FRAMES = 75;
+
+    constexpr int BALLS_PER_OVER = 6;   // no wides or no balls yet, so every ball counts
+
     // The ball is removed 90 frames after the hit, then input is ignored for
     // COOLDOWN_FRAMES; an outfield catch cheer must land before the next ball can start.
     constexpr int MAX_CATCH_CHEER_DELAY_FRAMES = 120;
@@ -44,16 +49,19 @@ namespace
 
 }
 
-practice_scene::practice_scene() :
-    _pitch(bn::regular_bg_items::pitch.create_bg(0, 0))
+batting_scene::batting_scene(game_mode mode, save_data& save) :
+    _mode(mode),
+    _save(save),
+    _pitch(bn::regular_bg_items::pitch.create_bg(0, 0)),
+    _scheme(save.scheme)
 {
     _show_bowler();
-    _show_tally();
+    _show_score();
     _show_help();
     _hud.set_banner("PRESS A/B TO BOWL");
 }
 
-void practice_scene::update()
+bool batting_scene::update()
 {
     // Advancing the generator every frame means deliveries depend on *when* the player
     // presses buttons, so each session differs.
@@ -86,10 +94,17 @@ void practice_scene::update()
         sounds::crowd(_outcome.type);
     }
 
+    // Out: the dismissal banner ("BOWLED!") stays up for a moment first.
+    if(_game_over_delay > 0 && --_game_over_delay == 0)
+    {
+        _hud.set_sub_banner(_new_best ? "NEW HIGH SCORE!" : "GAME OVER");
+    }
+
     _hud.update();
+    return ! _exit;
 }
 
-void practice_scene::_update_waiting()
+void batting_scene::_update_waiting()
 {
     if(_cooldown > 0)
     {
@@ -97,32 +112,41 @@ void practice_scene::_update_waiting()
         return;
     }
 
-    if(bn::keypad::l_pressed() || bn::keypad::r_pressed())
+    bool quick_play = _mode == game_mode::QUICK_PLAY;
+
+    if(! quick_play && (bn::keypad::l_pressed() || bn::keypad::r_pressed()))
     {
         int delta = bn::keypad::r_pressed() ? 1 : bowler_profiles_count - 1;
         _bowler_index = (_bowler_index + delta) % bowler_profiles_count;
         _show_bowler();
     }
 
-    if(bn::keypad::select_pressed())
+    // Back to the menu: any time in Practice; in Quick Play only between innings, so a
+    // stray press can't throw away a big score.
+    if(bn::keypad::select_pressed() && (! quick_play || _innings_over || ! _innings_started))
     {
-        _scheme = control_scheme((int(_scheme) + 1) % control_scheme_count);
-        _show_help();
+        _exit = true;
+        return;
     }
 
     if(bn::keypad::a_pressed() || bn::keypad::b_pressed() || bn::keypad::start_pressed())
     {
+        if(quick_play && (_innings_over || ! _innings_started))
+        {
+            _new_innings();
+        }
+
         _start_delivery();
     }
 }
 
-void practice_scene::_start_delivery()
+void batting_scene::_start_delivery()
 {
     _plan = generate_delivery(bowler_profiles[_bowler_index], _random);
 
     _hud.clear_lines();
     _show_bowler();
-    _show_tally();
+    _show_score();
     _show_help();
     _ball_view.hide();
     _batter.reset();
@@ -132,7 +156,7 @@ void practice_scene::_start_delivery()
     _state = state::RUN_UP;
 }
 
-void practice_scene::_release()
+void batting_scene::_release()
 {
     _flight.emplace(*_plan);
 
@@ -155,7 +179,7 @@ void practice_scene::_release()
     _state = state::LIVE;
 }
 
-void practice_scene::_update_live()
+void batting_scene::_update_live()
 {
     _flight->update();
     int frame = _flight->frames();
@@ -212,7 +236,7 @@ void practice_scene::_update_live()
     }
 }
 
-void practice_scene::_play_shot(const shot_intent& intent, int frame)
+void batting_scene::_play_shot(const shot_intent& intent, int frame)
 {
     // Basic: the game reads the length, like a batter's instinct (not always the best
     // shot; Pro players can beat it by choosing the foot themselves).
@@ -256,7 +280,7 @@ void practice_scene::_play_shot(const shot_intent& intent, int frame)
     }
 }
 
-void practice_scene::_play_bounce_sounds()
+void batting_scene::_play_bounce_sounds()
 {
     if(_flight->bounces() == _bounces_heard)
     {
@@ -277,7 +301,7 @@ void practice_scene::_play_bounce_sounds()
     }
 }
 
-void practice_scene::_check_catch()
+void batting_scene::_check_catch()
 {
     if(! _flight->was_hit() || _flight->dead())
     {
@@ -309,7 +333,7 @@ void practice_scene::_check_catch()
     }
 }
 
-int practice_scene::_frames_until_catch() const
+int batting_scene::_frames_until_catch() const
 {
     // Solve h(t) = h0 + up*t - g/2 t^2 = CATCH_HEIGHT for the later (coming down) root:
     //   t = (up + sqrt(up^2 + 2g (h0 - CATCH_HEIGHT))) / g
@@ -324,7 +348,7 @@ int practice_scene::_frames_until_catch() const
     return bn::clamp((t * 60).round_integer(), 1, MAX_CATCH_CHEER_DELAY_FRAMES);
 }
 
-void practice_scene::_finish_ball()
+void batting_scene::_finish_ball()
 {
 
     if(! _flight->was_hit())
@@ -355,7 +379,18 @@ void practice_scene::_finish_ball()
 
     if(is_out(_outcome.type))
     {
-        ++_outs;
+        if(_mode == game_mode::QUICK_PLAY)
+        {
+            _innings_ended();
+        }
+        else
+        {
+            ++_wickets;
+        }
+    }
+    else if(_mode == game_mode::QUICK_PLAY && _balls % BALLS_PER_OVER == 0)
+    {
+        _end_of_over();
     }
 
     // Reveal what the ball was, now that it's too late to matter.
@@ -364,45 +399,107 @@ void practice_scene::_finish_ball()
     text.append(line_zone_name(_line));
     _hud.set_line(2, text);
 
-    _show_tally();
+    _show_score();
     _cooldown = COOLDOWN_FRAMES;
     _state = state::WAITING;
     _show_help();
 }
 
-footwork practice_scene::_natural_footwork() const
+footwork batting_scene::_natural_footwork() const
 {
     bn::fixed back_from = back_foot_from_length(bowler_profiles[_bowler_index].type);
     return _preview.length >= back_from ? footwork::BACK : footwork::FRONT;
 }
 
-void practice_scene::_show_bowler()
+void batting_scene::_show_bowler()
 {
+    if(_mode == game_mode::QUICK_PLAY && ! _innings_started)
+    {
+        _hud.set_line(0, "QUICK PLAY");    // the bowlers are picked when you start
+        return;
+    }
+
     const bowler_profile& bowler = bowler_profiles[_bowler_index];
     bn::string<48> text(bowler.name);
     text.append(bowler.side == wicket_side::OVER ? " (OVER)" : " (ROUND)");
     _hud.set_line(0, text);
 }
 
-void practice_scene::_show_tally()
+void batting_scene::_show_score()
 {
-    bn::string<48> text;
-    bn::ostringstream stream(text);
-    stream << _runs << " RUNS  " << _balls << " BALLS  " << _outs << " OUT";
-    _hud.set_line(1, text);
-}
-
-void practice_scene::_show_help()
-{
-    if(_state == state::WAITING)
+    if(_mode == game_mode::QUICK_PLAY)
     {
-        bn::string<48> controls("SEL: ");
-        controls.append(scheme_name(_scheme));
-        _hud.set_help(controls, "A/B:BOWL L/R:BOWLER");
+        _scoreboard.set_quick_play(_runs, _balls, _innings_over, _save.best[int(_scheme)].runs);
     }
     else
     {
-        _hud.set_help(scheme_name(_scheme), scheme_help(_scheme));
+        _scoreboard.set_practice(_runs, _wickets, _balls);
+    }
+}
+
+void batting_scene::_new_innings()
+{
+    _runs = 0;
+    _balls = 0;
+    _wickets = 0;
+    _innings_started = true;
+    _innings_over = false;
+    _new_best = false;
+    _game_over_delay = 0;
+
+    // Two different bowlers, one from each end. Picked now (when A is pressed), not in
+    // the constructor: the random generator has been ticking every frame since the scene
+    // started, so the pair depends on when you pressed it.
+    _bowlers[0] = _random.get_int(bowler_profiles_count);
+    _bowlers[1] = _random.get_int(bowler_profiles_count - 1);
+
+    if(_bowlers[1] >= _bowlers[0])
+    {
+        ++_bowlers[1];      // skip over the first bowler, so they're never the same
+    }
+
+    _over_bowler = 0;
+    _bowler_index = _bowlers[0];
+}
+
+void batting_scene::_end_of_over()
+{
+    _hud.set_sub_banner("END OF OVER");
+    _over_bowler = 1 - _over_bowler;
+    _bowler_index = _bowlers[_over_bowler];
+    _show_bowler();     // shows who's bowling the next over
+}
+
+void batting_scene::_innings_ended()
+{
+    _innings_over = true;
+    _game_over_delay = GAME_OVER_BANNER_DELAY_FRAMES;
+    _new_best = record_innings(_save, _scheme, _runs, _balls);
+
+    if(_new_best)
+    {
+        store_save(_save);
+    }
+}
+
+void batting_scene::_show_help()
+{
+    // One line, just above the scoreboard. Keep it under ~230 px (~6 px per character).
+    if(_state != state::WAITING)
+    {
+        _hud.set_help(scheme_help(_scheme));
+    }
+    else if(_mode == game_mode::PRACTICE)
+    {
+        _hud.set_help("A/B:BOWL  L/R:BOWLER  SEL:MENU");
+    }
+    else if(_innings_over || ! _innings_started)
+    {
+        _hud.set_help(_innings_over ? "A/B:NEW INNINGS  SEL:MENU" : "A/B:BOWL  SEL:MENU");
+    }
+    else
+    {
+        _hud.set_help("A/B:BOWL");
     }
 }
 

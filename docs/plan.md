@@ -84,11 +84,19 @@ Sound first (was going to be a Phase 2.5; folded in as step one):
 - [x] Drop the V2/V3 from the scheme names: just "Basic" and "Pro"
 
 Then the game loop:
-- [ ] Bottom scoreboard: runs, balls faced; out → game over → restart
+- [x] Bottom scoreboard: TV-style strip (own bg layer, over the ball), `23* (17)` and
+  strike rate; out → dismissal banner → GAME OVER → A/B for a new innings
+- [x] Playtest the scoreboard (fine)
+- [x] Title menu: Quick Play / Practice, controls (Basic/Pro) moved here; SELECT = menu
+- [x] Quick Play: two random bowlers per innings, swapping each over ("END OF OVER");
+  dismissal banner stays, GAME OVER / NEW HIGH SCORE! on a second line
+- [x] Practice mode: the Phase 2 nets (L/R bowler, endless, runs/wickets)
+- [x] High score per control scheme (and last scheme) saved to SRAM; BEST on scoreboard
+- [ ] Playtest the menu / modes / saving over the weekend trip
 - [ ] After-contact presentation: follow ball off screen → field view (test transitions)
 - [ ] Simple fielders (squares) that slide to the ball; auto running; caught
-- [ ] Event banners: 4, 6, wicket, end of over
-- [ ] High score saved to SRAM
+- [ ] Event banners: proper presentation (slide-in, milestones 50/100); simple text
+  versions of 4, 6, wicket, end of over and game over exist
 
 ## Phase 4 — Depth
 - [ ] Placeholder bowler sprite: run-up, delivery stride, ball visible before release
