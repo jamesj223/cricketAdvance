@@ -14,6 +14,7 @@
 #include "ca_debug_hud.h"
 #include "ca_delivery.h"
 #include "ca_shots.h"
+#include "ca_sounds.h"
 #include "ca_stumps_view.h"
 #include "ca_timing_bar.h"
 
@@ -62,7 +63,10 @@ namespace ca
         shot_type _shot = shot_type::LEAVE;
         shot_outcome _outcome;
         int _hit_frame = -1;    // frame the bat meets the ball; -1 = it won't
+        sounds::bat_contact _contact;   // how the hit will sound
         vec3 _hit_position;     // where the bat met it
+        int _bounces_heard = 0; // bounces we've already played a sound for
+        int _crowd_delay = 0;   // frames until the boundary cheer (0 = none pending)
 
         // Running tally (for playtesting; the real scoreboard comes in Phase 3).
         int _runs = 0;
@@ -74,8 +78,10 @@ namespace ca
         void _release();
         void _update_live();
         void _play_shot(const shot_intent& intent, int frame);
+        void _play_bounce_sounds();
         void _check_catch();
         void _finish_ball();
+        [[nodiscard]] int _frames_until_catch() const;
 
         [[nodiscard]] footwork _natural_footwork() const;
         void _show_bowler();

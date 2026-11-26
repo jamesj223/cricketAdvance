@@ -65,6 +65,7 @@ phase, selectable with SELECT. Its source is the `phase-2-archive` branch (not m
 
 - `src/`, `include/` — game code
 - `graphics/` — sprite/background BMPs + JSON config (processed by Butano at build time)
+- `audio/` — sound effect WAVs (placeholders: `python3 tools/make_placeholder_sounds.py`)
 - `tools/` — helper scripts (e.g. placeholder sprite generator)
 - `external/butano/` — Butano, pinned as a git submodule (21.10.0)
 - `docs/` — design doc, plan, learnings

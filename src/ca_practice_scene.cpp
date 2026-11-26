@@ -7,6 +7,8 @@
 
 #include "bn_regular_bg_items_pitch.h"
 
+#include "ca_sounds.h"
+
 namespace ca
 {
 
@@ -21,6 +23,15 @@ namespace
     // After each ball, input is ignored for this long, so a very late shot press can't
     // bowl the next ball.
     constexpr int COOLDOWN_FRAMES = 45;
+
+    // How long after the hit the crowd cheers a boundary (60 frames = 1 s). A six hangs
+    // in the air, so the cheer builds a little later.
+    constexpr int BOUNDARY_CHEER_DELAY_FRAMES = 30;
+    constexpr int SIX_CHEER_DELAY_FRAMES = 40;
+
+    // The ball is removed 90 frames after the hit, then input is ignored for
+    // COOLDOWN_FRAMES; an outfield catch cheer must land before the next ball can start.
+    constexpr int MAX_CATCH_CHEER_DELAY_FRAMES = 120;
 
     // How far behind the bat an edge is caught: the keeper stands back to pace and up to
     // the stumps for spin (the slips are alongside the keeper).
@@ -67,6 +78,12 @@ void practice_scene::update()
 
         default:
             break;
+    }
+
+    // Ticks in every state: the ball may already be dead when the cheer is due.
+    if(_crowd_delay > 0 && --_crowd_delay == 0)
+    {
+        sounds::crowd(_outcome.type);
     }
 
     _hud.update();
@@ -128,6 +145,7 @@ void practice_scene::_release()
     _shot = shot_type::LEAVE;
     _outcome = shot_outcome();
     _hit_frame = -1;
+    _bounces_heard = 0;
 
     bn::string<48> text(bowler_profiles[_bowler_index].name);
     bn::ostringstream stream(text);
@@ -141,6 +159,7 @@ void practice_scene::_update_live()
 {
     _flight->update();
     int frame = _flight->frames();
+    _play_bounce_sounds();
 
     if(! _shot_played && ! _flight->dead())
     {
@@ -164,6 +183,23 @@ void practice_scene::_update_live()
         _hit_position = _flight->position();
         _flight->hit(_outcome.hit_velocity);
         _hud.set_banner(outcome_banner(_outcome));
+        sounds::bat(_contact);
+
+        // The crowd reacts once they see where it's going, not at the moment of the hit.
+        if(_outcome.type == outcome_type::FOUR)
+        {
+            _crowd_delay = BOUNDARY_CHEER_DELAY_FRAMES;
+        }
+        else if(_outcome.type == outcome_type::SIX)
+        {
+            _crowd_delay = SIX_CHEER_DELAY_FRAMES;
+        }
+        else if(_outcome.type == outcome_type::CAUGHT && ! is_defensive(_shot))
+        {
+            // Outfield catches are taken after the ball has flown out of view (and been
+            // removed), so _check_catch never sees them: cheer when the catch would be.
+            _crowd_delay = _frames_until_catch();
+        }
     }
 
     _check_catch();
@@ -191,10 +227,15 @@ void practice_scene::_play_shot(const shot_intent& intent, int frame)
     timing_grade grade = grade_timing(error, rating, is_defensive(_shot));
 
     _outcome = resolve_shot(_shot, intent.lofted, grade, rating, _line, _random);
+    _contact = { _outcome.type, grade, intent.direction, is_defensive(_shot), intent.lofted };
 
     if(makes_contact(grade) && _outcome.type != outcome_type::PLAYED_AND_MISSED)
     {
         _hit_frame = bn::max(frame, contact_frame);
+    }
+    else if(! is_defensive(_shot))
+    {
+        sounds::whoosh();   // swinging at thin air
     }
 
     _batter.play_shot(_shot);
@@ -212,6 +253,27 @@ void practice_scene::_play_shot(const shot_intent& intent, int frame)
         bn::ostringstream stream(text);
         stream << timing_name(grade) << " (" << (error > 0 ? "+" : "") << error << " FRAMES)";
         _hud.set_line(4, text);
+    }
+}
+
+void practice_scene::_play_bounce_sounds()
+{
+    if(_flight->bounces() == _bounces_heard)
+    {
+        return;
+    }
+
+    _bounces_heard = _flight->bounces();
+    bn::fixed impact = _flight->last_impact_speed();
+    bn::fixed x = _flight->position().x;
+
+    if(! _flight->was_hit() && _bounces_heard == 1)
+    {
+        sounds::pitch_bounce(impact, _preview.length, x);
+    }
+    else
+    {
+        sounds::outfield_bounce(impact, x);
     }
 }
 
@@ -234,6 +296,7 @@ void practice_scene::_check_catch()
         if(mul(dx, dx) + mul(dz, dz) >= mul(distance, distance))
         {
             _flight->stop();
+            sounds::crowd(_outcome.type);
         }
     }
     else if(_outcome.type == outcome_type::CAUGHT || _outcome.type == outcome_type::CAUGHT_AND_BOWLED)
@@ -241,12 +304,29 @@ void practice_scene::_check_catch()
         if(_flight->velocity().h < 0 && position.h <= CATCH_HEIGHT)
         {
             _flight->stop();
+            sounds::crowd(_outcome.type);
         }
     }
 }
 
+int practice_scene::_frames_until_catch() const
+{
+    // Solve h(t) = h0 + up*t - g/2 t^2 = CATCH_HEIGHT for the later (coming down) root:
+    //   t = (up + sqrt(up^2 + 2g (h0 - CATCH_HEIGHT))) / g
+    bn::fixed up = _outcome.hit_velocity.h;
+    bn::fixed h0 = _hit_position.h;
+    bn::fixed discriminant = mul(up, up) + mul(2 * GRAVITY, h0 - CATCH_HEIGHT);
+    // (If it never gets above catching height, it's caught at the top of its flight.)
+    bn::fixed root = discriminant > 0 ? bn::fixed(bn::sqrt(discriminant)) : bn::fixed(0);
+    bn::fixed t = div(up + root, GRAVITY);
+
+    // Never later than the next ball could start, or it would cheer over the next delivery.
+    return bn::clamp((t * 60).round_integer(), 1, MAX_CATCH_CHEER_DELAY_FRAMES);
+}
+
 void practice_scene::_finish_ball()
 {
+
     if(! _flight->was_hit())
     {
         _outcome.runs = 0;
@@ -255,6 +335,8 @@ void practice_scene::_finish_ball()
         {
             _outcome.type = outcome_type::BOWLED;
             _stumps.set_broken(true);
+            sounds::stumps();
+            sounds::crowd(_outcome.type);
         }
         else if(! _shot_played || _shot == shot_type::LEAVE)
         {

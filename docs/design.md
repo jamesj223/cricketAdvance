@@ -427,6 +427,25 @@ effectively an assisted/easy mode.
   Drive it from the ball's downward speed at the bounce, not length directly, so it falls
   out of the physics (short balls hit the pitch steeper and harder). Volume can scale too,
   and panning can follow the line. A sonic pitch map — teaches length by ear.
+- **Sound playtest (Phase 3):** bounce pitch by impact works; stumps and crowd loved;
+  whoosh on a play and miss "perfect". Crowd: boundaries get a delayed (0.5 s four,
+  0.67 s six), quieter cheer; **wickets are the biggest cheer**.
+  **Hit sounds by shot.** Five middled-crack candidates were auditioned; the user liked
+  all of them and word-associated each with a shot, so each became one:
+  | Contact | Sound | User's association |
+  |---|---|---|
+  | mistimed (early/late) | bat (tock) | — |
+  | good timing | solid (old crack) | "okay hit, not an edge, not middled" |
+  | middled, ground, leg side | thwack | "good hit along the ground, leg side" |
+  | middled, ground, point / third man | pock | "cut shot, middled" |
+  | middled, drives (and lofted off side) | clean | "lofted drive; so well hit it doesn't make as much noise as it should" |
+  | middled, lofted, leg side | thock | "BIG 6, slow sweep over cow corner" |
+  | attacking shot that's caught | mishit (rifle) | "big slog, mis-hit, probably caught" |
+  Outfield catches cheer at the predicted catch time (the ball leaves view first).
+  **Tried and rejected:** an 8-bit "ball in the air" whistle (PSG channel 3 triangle wave,
+  pitch following height, NES-style): instant "Nope!" from the user. Sounds called done.
+  The mis-hit sound gives the catch away a beat early, as in real cricket. Idea: per-shot
+  sounds could later follow the actual shot (e.g. sweep) rather than just direction.
 - **Training aid: colour-coded length zones on the pitch**, like TV pitch maps
   (full / good / short bands). Teaches reading length, which is what the shot choice
   really depends on, without telling you *when* to swing. Easy: pre-rendered pitch

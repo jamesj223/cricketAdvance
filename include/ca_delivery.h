@@ -50,6 +50,12 @@ namespace ca
 
         // Recorded as the ball travels (valid once the corresponding flag is set).
         [[nodiscard]] bool bounced() const { return _bounced; }
+
+        // Every time the ball hits the ground (the pitch, then the outfield after a hit):
+        // how many times so far, and how fast it was coming down the last time (m/s,
+        // positive). Used for the bounce sound: harder = deeper and louder.
+        [[nodiscard]] int bounces() const { return _bounces; }
+        [[nodiscard]] bn::fixed last_impact_speed() const { return _last_impact_speed; }
         [[nodiscard]] const vec3& bounce_position() const { return _bounce_pos; }
         [[nodiscard]] bool reached_crease() const { return _reached_crease; }
         [[nodiscard]] const vec3& crease_position() const { return _crease_pos; }
@@ -69,6 +75,8 @@ namespace ca
         int _hit_frame = 0;
         bool _hit = false;
         bool _bounced = false;
+        int _bounces = 0;
+        bn::fixed _last_impact_speed;
         bool _reached_crease = false;
         bool _reached_stumps = false;
         bool _hit_stumps = false;

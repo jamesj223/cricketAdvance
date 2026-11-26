@@ -163,6 +163,8 @@ bool ball_flight::update()
         }
 
         _pos.h = 0;
+        ++_bounces;
+        _last_impact_speed = -_vel.h;
         _vel.h = -mul(_vel.h, _restitution);
         _vel.z = mul(_vel.z, _friction);
 

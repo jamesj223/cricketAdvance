@@ -64,7 +64,7 @@ namespace
         return shot_direction::STRAIGHT;   // no direction held
     }
 
-    // --- Basic V2 ---------------------------------------------------------------------------
+    // --- Basic (V2 in Phase 2) ---------------------------------------------------------------------------
 
     // A or B plays the shot; hold L or R = lofted. The game picks the footwork.
     bn::optional<shot_intent> read_basic()
@@ -89,7 +89,7 @@ namespace
         return intent;
     }
 
-    // --- Pro V3 -------------------------------------------------------------------------
+    // --- Pro (V3 in Phase 2) -------------------------------------------------------------------------
 
     bn::optional<shot_intent> read_pro()
     {
@@ -128,8 +128,8 @@ namespace
 const char* scheme_name(control_scheme scheme)
 {
     constexpr const char* names[] = {
-        "BASIC V2",
-        "PRO V3",
+        "BASIC",
+        "PRO",
     };
     static_assert(sizeof(names) / sizeof(names[0]) == control_scheme_count);
     return names[int(scheme)];
