@@ -48,7 +48,7 @@ namespace ca
         int _run_up_counter = 0;
         int _cooldown = 0;      // frames left ignoring input after a ball
         int _bowler_index = 0;
-        control_scheme _scheme = control_scheme::BASIC_V2;
+        control_scheme _scheme = control_scheme::BASIC;
 
         // The current delivery.
         bn::optional<delivery_plan> _plan;
@@ -77,7 +77,7 @@ namespace ca
         void _check_catch();
         void _finish_ball();
 
-        [[nodiscard]] footwork _best_footwork(const shot_intent& intent) const;
+        [[nodiscard]] footwork _natural_footwork() const;
         void _show_bowler();
         void _show_tally();
         void _show_help();

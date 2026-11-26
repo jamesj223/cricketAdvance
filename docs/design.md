@@ -17,6 +17,8 @@ marked **Open** and get settled by prototyping, not by debate.
 - Platform: GBA (`.gba` ROM), played on an Anbernic RG SP. Developed and tested in mGBA.
 - Engine: **Butano** (C++). **Decided.**
 - Art: placeholder shapes first; pixel art later.
+- **Batter poses — later:** a separate pose per shot (16 + leave), even if some are
+  close to others. Currently six poses are shared.
 - **Ball sprite — later:** give it a seam; animate the seam spinning for spinners; for
   swing bowlers, make one side lighter (the shiny side), which shows which way it should
   swing — and gives a sneaky visual tell when an outswing bowler slips in a surprise
@@ -108,6 +110,17 @@ run-up and delivery stride (the ball visible in the hand before release) should 
 
 ### Bowlers — later (Phase 4+)
 
+- **Teams and kit — later:** let players choose their team / kit colours.
+- **Pre-made bowling attacks — later:** themed by country and era (e.g. "2005 England",
+  "2007 Australia", "1980s West Indies"): the right mix of pace, swing and spin for
+  that side. Names: affectionate Ricky Ponting Cricket-style misspellings of the era's
+  players (user's call).
+- **Pitch and weather conditions — later:** variety per game. Green pitch = more seam,
+  cloudy = more swing, dry = more spin (and maybe bounce: hard/bouncy vs slow/low).
+  Fits the profile model as multipliers on air_movement / bounce_movement / restitution.
+- **Leg-side wides** (limited-overs rule, which suits our T20/ODI-style play): anything
+  passing down the leg side, missing the batter, is a wide. Bowlers' bad balls on the
+  pads should then stay just inside that line.
 - **Wides and no balls — later (needs a scoreboard / extras, Phase 3+):** occasional real
   wides (past the wide line, +1 run, ball re-bowled) and a very rare no ball (~1 in 100)
   — possibly with a free hit, which suits the arcade feel.
@@ -241,17 +254,17 @@ effectively an assisted/easy mode.
     catches at the keeper / slips cordon and stop the ball there (a "caught" stop); leave
     wider angles for edges that are *not* caught (those should run away for runs).
     Same for lofted CAUGHT: end the flight at the catch, don't let it land and roll.
-  - *Bad balls too bad:* the loose ball is uniform over length -0.5..11 m and line
+  - *(Done)* *Bad balls too bad:* the loose ball is uniform over length -0.5..11 m and line
     -1.2..+0.8 m (before swing/seam), so it's usually a very short, very wide ball —
     unplayable rather than a gift. Fix: pick from a few *hittable* kinds instead —
     half-volley (1.5-3 m, around the stumps), long hop (8-10 m, around off), width
     (good-ish length, 0.4-0.8 m outside off), on the pads (full, just down leg).
     Real wides are a separate thing (below).
-  - *Blocking should depend on the line* (user): blocking a wide ball = play and miss;
+  - *(Done)* *Blocking should depend on the line* (user): blocking a wide ball = play and miss;
     blocking on 5th stump (OFF zone) = real edge risk; on the stumps = safest. Makes
     **leaving** the right answer to wide balls, which is cricket's core off-side decision.
     Combine with the timing-grade risk below.
-  - *Mistimed blocks too safe:* an early (yellow / GOOD) block can't get you out, because
+  - *(Done)* *Mistimed blocks too safe:* an early (yellow / GOOD) block can't get you out, because
     GOOD timing + any non-zero shot rating already scores 3 = safe, and defence windows
     are already widened. Idea: base defence risk on the timing grade more than the score.
     Early = leading edge popping up (return catch / bat-pad); late = thin edge to the
@@ -304,7 +317,41 @@ effectively an assisted/easy mode.
   tighter ratings / windows. It also chose back-foot shots for balls that looked full
   (good length): fixed by toning down back-foot ratings at good length and breaking
   ties by the real length (forward if fuller than 5.5 m).
-- **Pro V3 (built, to test):** D-pad aim, Up = block. **B = front foot, A = back foot** —
+- **"Stuck on the crease" removed:** with Pro V3, A and B on the very same frame is
+  rare and can't be ordered, so the game just picks the foot from the length (as Basic).
+  No penalty. (It was really a Pro V2 rule, for holding neither shoulder.)
+- **Basic difficulty — decided (for now):** Basic is probably still slightly too easy,
+  but leave it. Difficulty will rise for *both* schemes as mechanics arrive (fielders,
+  confidence/fatigue meters, harder bowlers), and Pro will additionally reward correct
+  foot selection on top of that. Don't artificially hamper Basic.
+- **Basic difficulty — earlier thinking:** the game picking the foot makes Basic easier,
+  but it's also what makes it do what the player *meant* most of the time. Plan: if both
+  schemes feel too easy, that's global tuning / difficulty levels (Phase 4: bowler skill,
+  windows), not a Basic handicap. Only add a Basic-specific knob if Basic alone is too
+  easy relative to Pro. Fielders, meters and harder bowlers will also add difficulty.
+- **Basic difficulty — decided to try:** instead of tighter timing windows (an artificial
+  handicap), Basic's auto footwork now goes by **length only** (front if fuller than
+  5.5 m pace / 4 m spin), not "whichever rates better". Usually the same; on in-between
+  balls it can be the lesser shot, and Pro players can beat it by choosing. Pro's reward
+  = it can do things Basic can't. Tighten windows only if Basic is still too easy.
+- **Hardware playtest (RG SP, train):** happy with **Pro V3 and Basic V2** for now (minor
+  tweaks later). Short balls have a big sweet spot on Pro V3 — feels rewarding and
+  realistic (punish the bad ball). Lofted risk/reward feels a bit off, but wait for
+  fielders and the meters before tuning it.
+- **How the user tests ratings** (worth keeping): (1) bat normally, and note any ball where
+  the shot felt right but the timing bar disagreed, with the reasoning; (2) play one fixed
+  shot for 15-20 balls and judge each outcome, using the bar's colours and their widths.
+- **Rating changes from those notes:**
+  - *Pace vs spin:* spin now has its own, shorter length zones (yorker < 1.25 m, full
+    < 3, good < 4.75, short beyond; pace is 2 / 4 / 6.5), and auto footwork goes back
+    from 4 m (pace 5.5 m). The same spot pitched by a slow spinner is easier to go back
+    to. One ratings table still serves both.
+  - *Leg glance and clip:* best on the pads / down leg, risky (1) on the stumps,
+    useless outside off. (Flick renamed to **Clip**.)
+  - *Pull, short balls:* wide outside off = 0 (cut it instead; reaching for a pull is
+    how you sky one), outside off = 3 (pull or cut), on the stumps = 3, down leg = 2
+    (pull is fine but the hook is the shot).
+- **Pro V3 (built):** D-pad aim, Up = block. **B = front foot, A = back foot** —
   the button picks the foot *and* times the shot, so it's two inputs, not three. Hold
   L or R = lofted (held in advance, not timed). A+B together = on the crease. B sits
   lower on the GBA, so lower button = forward = down the screen.
@@ -317,7 +364,7 @@ effectively an assisted/easy mode.
   | left (point) | Square drive | Cut |
   | up-left (third man) | Guide | Late cut |
   | up-right (fine leg) | Leg glance | Hook |
-  | right (square leg) | Flick | Pull |
+  | right (square leg) | Clip | Pull |
   | down-right (midwicket) | On drive | Slog |
   | up | Forward defence | Back-foot defence |
 
@@ -355,6 +402,13 @@ effectively an assisted/easy mode.
   (full / good / short bands). Teaches reading length, which is what the shot choice
   really depends on, without telling you *when* to swing. Easy: pre-rendered pitch
   variant, toggled as an option.
+
+### Later ideas from Phase 2 (not doing now)
+
+- **Show what you pressed** after the ball — decided the shot description is enough.
+- **Continuous hit angle:** each frame early/late turns the ball a few more degrees
+  (currently a fixed +/-25 for EARLY/LATE), plus a little from the ball's line. Revisit
+  with fielders, when the angle starts to matter.
 
 ### Settings — later
 

@@ -16,6 +16,49 @@ namespace
         return mul((a + b) / 2, spread);
     }
 
+    // A bad ball: one that's there to be hit. Lengths in metres in front of the stumps,
+    // lines as x at the bounce (-x = off side). Spin lengths are shorter: the ball is
+    // slower, so it reaches the same zone sooner (see the length zones in ca_shots.cpp).
+    struct bad_ball
+    {
+        bn::fixed length_min;
+        bn::fixed length_max;
+        bn::fixed line_min;
+        bn::fixed line_max;
+    };
+
+    //                                  pace                         spin
+    constexpr bad_ball half_volley[2] = { { 1.5, 2.8, -0.3, 0.1 },    { 1, 2, -0.3, 0.1 } };
+    constexpr bad_ball long_hop[2] =    { { 8, 10, -0.5, 0.05 },      { 5.25, 6.5, -0.5, 0.05 } };
+    constexpr bad_ball width[2] =       { { 4.5, 6.5, -0.8, -0.5 },   { 3, 4.5, -0.8, -0.5 } };
+    // On the pads: just outside leg stump, inside where a leg-side wide would be.
+    constexpr bad_ball pads[2] =        { { 2.5, 4, 0.15, 0.35 },     { 1.75, 3, 0.15, 0.3 } };
+
+    bad_ball pick_bad_ball(const bowler_profile& bowler, bn::random& random)
+    {
+        const bowler_profile::bad_ball_weights& mix = bowler.bad_ball_mix;
+        int index = bowler.type == bowler_type::SPIN ? 1 : 0;
+        int total = mix.half_volley + mix.long_hop + mix.width + mix.pads;
+        int pick = random.get_int(total);
+
+        if((pick -= mix.half_volley) < 0)
+        {
+            return half_volley[index];
+        }
+
+        if((pick -= mix.long_hop) < 0)
+        {
+            return long_hop[index];
+        }
+
+        if((pick -= mix.width) < 0)
+        {
+            return width[index];
+        }
+
+        return pads[index];
+    }
+
     // Random value in [-amount, amount). Returns 0 when amount is 0 (bn::random
     // asserts on an empty range, so this must be checked).
     bn::fixed plus_minus(bn::random& random, bn::fixed amount)
@@ -48,9 +91,9 @@ delivery_plan generate_delivery(const bowler_profile& bowler, bn::random& random
 
     if(random.get_int(100) < bowler.bad_ball_percent)
     {
-        // Loose ball: anything from a full toss to a long hop, wide either side.
-        length = random.get_fixed(-0.5, 11);
-        line = random.get_fixed(-1.2, 0.8);
+        bad_ball ball = pick_bad_ball(bowler, random);
+        length = random.get_fixed(ball.length_min, ball.length_max);
+        line = random.get_fixed(ball.line_min, ball.line_max);
     }
     else
     {

@@ -78,9 +78,22 @@ namespace ca
         // actually passes the batter.
         bn::fixed target_line;
         bn::fixed line_spread;
-        // Chance (0-100) of a loose ball that ignores the above: anything from a
-        // full toss to a long hop, wide either side. Higher = easier bowler.
+        // Chance (0-100) of a loose ball that ignores the above. Higher = easier bowler.
+        // Real bowlers rarely bowl junk; a bad ball just misses line or length enough to
+        // be put away. Which kind comes from bad_ball_mix.
         int bad_ball_percent;
+        // Relative weights of the kinds of bad ball (see bad_ball_kind in ca_delivery.cpp):
+        //   half-volley (over-pitched, around off/middle), long hop (dragged down short),
+        //   width (good-ish length, too wide outside off), pads (full, drifting onto the legs).
+        // e.g. leg spinners drag it down (long hops); inswingers stray onto the pads.
+        struct bad_ball_weights
+        {
+            int half_volley;
+            int long_hop;
+            int width;
+            int pads;
+        };
+        bad_ball_weights bad_ball_mix;
 
         // --- Movement in the air (swing for pace, drift for spin) -----------------------
         // Sideways acceleration while the ball is in the air, m/s^2 (sign as above).
@@ -124,6 +137,7 @@ namespace ca
             .target_line = -0.25,
             .line_spread = 0.35,
             .bad_ball_percent = 10,
+            .bad_ball_mix = { .half_volley = 3, .long_hop = 3, .width = 3, .pads = 2 },
             .air_movement = 0,              // no swing: a pure seam bowler
             .air_movement_variation = 0,
             .bounce_movement = 0,
@@ -145,6 +159,7 @@ namespace ca
             .target_line = -0.35,           // pitch outside off, turn back in to the stumps
             .line_spread = 0.3,
             .bad_ball_percent = 10,
+            .bad_ball_mix = { .half_volley = 3, .long_hop = 2, .width = 1, .pads = 3 },
             .air_movement = 0,              // drift, either way
             .air_movement_variation = 1.0,
             .bounce_movement = 1.4,         // off-break: turns into a right-hander
@@ -166,6 +181,7 @@ namespace ca
             .target_line = -0.12,           // at off stump: swing in, threaten the stumps
             .line_spread = 0.4,
             .bad_ball_percent = 10,
+            .bad_ball_mix = { .half_volley = 3, .long_hop = 1, .width = 2, .pads = 4 },
             .air_movement = 3.5,            // always swings in to a right-hander
             .air_movement_variation = 1.0,  // so 2.5 to 4.5
             .bounce_movement = 0,

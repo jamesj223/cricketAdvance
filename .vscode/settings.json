@@ -1,0 +1,25 @@
+// Cricket Advance theme: the colours of the logo / cart label (art/).
+//   grass green #2e7d32 / #3c9140 (mowing stripes), pitch tan #cdb478, ball red #d21e1e
+{
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#2e7d32",
+        "activityBar.activeBackground": "#3c9140",
+        "activityBar.foreground": "#ffffff",
+        "activityBar.inactiveForeground": "#cdb478",
+        "activityBar.activeBorder": "#d21e1e",
+        "activityBarBadge.background": "#d21e1e",
+        "activityBarBadge.foreground": "#ffffff",
+        "titleBar.activeBackground": "#2e7d32",
+        "titleBar.activeForeground": "#ffffff",
+        "titleBar.inactiveBackground": "#2e7d32",
+        "titleBar.inactiveForeground": "#cdb478",
+        "statusBar.background": "#cdb478",
+        "statusBar.foreground": "#1b3d1d",
+        "statusBarItem.remoteBackground": "#d21e1e",
+        "statusBarItem.remoteForeground": "#ffffff",
+        "statusBar.debuggingBackground": "#d21e1e",
+        "statusBar.debuggingForeground": "#ffffff",
+        "statusBar.noFolderBackground": "#cdb478",
+        "statusBar.noFolderForeground": "#1b3d1d"
+    }
+}

@@ -39,30 +39,33 @@ ball bounced; "hitting the stumps" detection.
 - [x] Broken-stumps frame when bowled (batter's stumps are now a sprite)
 - [x] Loft for Pro Controls (A+B)
 - [x] Playtest on real hardware (Miyoo Mini Plus — Basic feels great; Pro needs rethinking)
-- [ ] **Play it a lot. Tune. Pick a control scheme.**
+- [x] **Play it a lot. Tune. Pick a control scheme.** → Basic (V2) and Pro (V3)
 
 ### Phase 2 — where we are / next up (WIP)
-Status: playable practice loop with four control schemes (Basic V2 and Pro V3 are the front-runners); real-hardware testing under way.
+Status: playable practice loop with two control schemes, Basic (V2) and Pro (V3) — they
+drop the version numbers from Phase 2.5. Real-hardware testing under way.
 Full notes and reasoning in `docs/design.md` ("Controls — playtest notes",
 "Timing feedback"). Candidate next steps, roughly in order:
 - [x] Basic V2 controls: D-pad = direction, Up = block, A ground, B loft; game picks
       the foot. 16 rated shots (direction x foot)
 - [x] Pro V2: Basic V2 + hold L/R for front/back foot (neither = stuck on the crease)
 - [x] Removed the live timing bar and old Pro (A+B chord)
-- [ ] Playtest V2 schemes; decide whether Basic V1 goes
+- [x] Playtest V2 schemes; decided: keep only Basic V2 and Pro V3 (others only in the archive ROM)
 - [x] Fix caught-behind / caught: aim catches at keeper/slips/fielder and stop the ball
       there; only uncaught edges run away
 - [x] Pro V3 prototype (B front / A back, shoulder loft)
 - [x] Input cooldown after each ball
-- [ ] Basic V2 difficulty: tighten ratings / timing windows
-- [ ] Bad balls: hittable kinds (half-volley, long hop, width, on the pads), not random junk
-- [ ] Block risk by line (wide = miss, 5th stump = edge risk) and by timing grade
-      (early = leading edge / return catch, late = thin edge to keeper)
-- [ ] Banner between balls still says "PRESS A TO BOWL" — should say A/B (help line already does)
-- [ ] Shot ratings: user has notes on FF flick and leg glance (from hardware testing)
-- [ ] Show what you pressed in the after-ball summary
-- [ ] Continuous hit angle from timing error (and ball line)
-- [ ] Phase-end: write the Phase 2 section of `docs/learnings.md` with exercises,
+- [x] Basic V2 difficulty: auto footwork now by length only. Still slightly easy —
+      left for now; difficulty rises for both schemes with later mechanics
+- [x] Bad balls: hittable kinds (half-volley, long hop, width, on the pads), weighted per bowler
+- [x] Block risk by line (wide = miss, 5th stump = edge risk) and by timing grade
+      (early = leading edge: caught & bowled or bat-pad; late = thin edge to keeper)
+- [x] Banner between balls says "PRESS A/B TO BOWL"
+- [x] Shot ratings from hardware testing: spin has its own length zones; leg glance /
+      clip (renamed from flick) best on the pads; pull to short balls by line
+- [ ] (Do last, before 2.5) Archive ROM with every control scheme tested in Phase 2 (old Basic/Pro with
+      3-way side, A+B chord loft, scheme 1, etc.) selectable, for looking back
+- [x] Phase-end: write the Phase 2 section of `docs/learnings.md` with exercises,
       save `roms/phase-2.gba`
 
 ## Phase 2.5 — Sound

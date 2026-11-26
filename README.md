@@ -48,6 +48,11 @@ Run it in the emulator:
 To play on a handheld (Anbernic RG SP, Miyoo Mini Plus), copy `cricketAdvance.gba` to the
 GBA ROMs folder on its SD card.
 
+On the RG SP's slot CFW, the cart label goes in `Labels/GBA/` with the same name as the
+ROM: copy `art/label/cricketAdvance.png` to `Labels/GBA/cricketAdvance.png` (slot caches
+it on the next boot). For a green cart shell, add this line to `Labels/cart_shell.txt`:
+`cricketAdvance = auto 2e7d32 solid`
+
 ## Phase snapshots
 
 `roms/phase-N.gba` is the ROM at the end of each phase (committed, so you can look back at
@@ -60,4 +65,5 @@ progress). At the end of a phase: `cp cricketAdvance.gba roms/phase-N.gba`.
 - `tools/` — helper scripts (e.g. placeholder sprite generator)
 - `external/butano/` — Butano, pinned as a git submodule (21.10.0)
 - `docs/` — design doc, plan, learnings
+- `art/` — logo and slot CFW cart label (`python3 tools/make_cart_art.py`)
 - `roms/` — saved ROM from the end of each phase

@@ -190,3 +190,117 @@ Reading order: `ca_world.h` → `ca_bowler.h` → `ca_delivery.h/.cpp` → `ca_c
    look at `build/preview.png`, rebuild.
 5. *(Optional)* Browse `external/butano/examples/` — one small project per feature.
    The Tonc tutorials explain the underlying hardware.
+
+---
+
+## Phase 2 — Hitting it
+
+The longest phase so far, and the first one driven mostly by playtesting: build something,
+play it (on a laptop, then real hardware), change it. Reading order: `ca_shots.h` →
+`ca_controls.h` → `ca_practice_scene.cpp` (`_play_shot` is the heart of it).
+
+### The batting pipeline
+
+One delivery, start to finish:
+
+1. **Release:** the whole delivery is simulated in advance (`preview_delivery`) to find
+   where the ball pitches and the exact frames it reaches the bat on the front and back
+   foot.
+2. **Classify the ball** into a zone: line (wide / outside off / stumps / leg) ×
+   length (yorker / full / good / short). Length bands differ for pace and spin.
+3. **Read the input** → a `shot_intent` (direction, foot or "game picks", attack/block,
+   loft). The control scheme only does this step.
+4. **Intent → shot** (`make_shot`): direction × foot gives one of 16 shots.
+5. **Rate the shot for the ball** (`rating_table`, 0 = wrong … 3 = ideal).
+6. **Grade the timing:** press frame minus contact frame, against windows that grow with
+   the rating. A good shot choice literally gives you more time.
+7. **Outcome** from timing + rating (+ line for blocks), then pick a velocity that *shows*
+   that outcome (`hit_velocity`). The result is decided first; the physics delivers it —
+   the same "solve backwards" idea as the bowling in Phase 1.
+
+### Looking into the future is cheap
+
+`preview_delivery` runs the same `ball_flight` code ~60-100 times in one frame before the
+ball is even visible. That's a few thousand integer operations — trivial for the CPU. It
+works because the simulation is **deterministic**: same plan in, same flight out. (If the
+physics used the random number generator mid-flight, the preview and the real ball could
+disagree.) Games use this trick a lot: AI that predicts where a ball will land, trajectory
+previews, replays.
+
+### Time is measured in frames
+
+- At 60 fps one frame ≈ 16.7 ms. All timing is in whole frames: an ideal shot's "perfect"
+  window is ±2 frames (≈ 83 ms total). See `timing_windows` in `src/ca_shots.cpp`.
+- Human reaction time is ~200 ms ≈ 12 frames — longer than most timing windows. You can't
+  react to a cue *at* the right moment; you have to anticipate. That's why the live timing
+  bar failed (and was removed): watching it took your eyes off the ball.
+- The after-shot timing bar asks the real rules (`grade_timing`) for every cell, so it can
+  never disagree with the game. "Draw the UI from the rules, not a copy of them."
+
+### Reading the buttons
+
+- The GBA has one 10-bit register (`KEYINPUT`) with a bit per button. Butano reads it once
+  per frame. `a_held()` = the bit is set now; `a_pressed()` = set now but not last frame
+  (an **edge**). Shots use `_pressed` so holding A doesn't play a shot every frame.
+- Two buttons pressed within the same frame are **simultaneous** — there's no way to know
+  which came first. Pro's A+B case has to have a rule for that.
+- **Input buffering has knock-on effects.** The old A+B chord loft waited up to 3 frames
+  for the second button. That needed "timed from the first press" bookkeeping *and*
+  pausing the stumps check, or a well-timed shot could be ruled bowled while the game was
+  still deciding. Lesson: every frame of input latency has gameplay consequences.
+- After each ball, input is ignored for 45 frames: a very late press was bowling the next
+  ball. Small "dead zones" like this are everywhere in real games.
+
+### Sprites: frames, layers and text budget
+
+- **Animation by swapping tiles:** the batter is one 32×32 sprite; each pose is a frame in
+  the same sprite sheet and `set_tiles` swaps which frame's tiles it shows. Same for the
+  standing / broken stumps. No new sprite needed.
+- **Layering:** lower z order draws on top. The ball switches z order as it passes the
+  batter, so it goes behind the pads and in front of the stumps.
+- **Text is a budget:** with a variable-width sprite font, a line must fit the screen.
+  We measure strings using the font's width table (that's how "GOOD CHOICE" became
+  "GOOD SHOT" — it was 5 px too wide in the longest line).
+
+### Design and code lessons
+
+- **Tables are design.** The rating table, timing windows and blocking percentages are all
+  tuning data in one place. Most playtest feedback turned into a changed number, not
+  changed code.
+- **Schemes are just input mappings.** Because every control scheme only produces a
+  `shot_intent`, we could add, compare and delete schemes (seven in total!) without
+  touching timing or outcomes.
+- **Deleting is fine — git remembers.** The removed schemes live on in history and in the
+  `phase-2-archive` branch (`roms/phase-2-controls.gba`).
+- **Play it on the real thing.** Real buttons felt completely different to a keyboard, and
+  the A+B chord and button layout questions only showed up in hands-on play.
+- **Two ways to playtest a tuning table:** play normally and note where the game
+  disagrees with your instinct; or play one fixed shot for 15-20 balls and judge each
+  result. The second isolates one row of the table.
+- **Realism often *is* the fun.** "Bad balls" became hittable half-volleys and long hops
+  rather than random junk: more fun, and closer to how real bowlers miss.
+- **Interpret, don't follow literally.** Pro controls went V1 → V2 → V3. The problem was
+  never which buttons; it was how many separate decisions happen at the moment of the shot.
+  V3 folds footwork into *which* button you press, so it's two inputs, not three.
+
+### Exercises
+
+1. **Frame-step a shot.** In mGBA, pause (**Ctrl+P**, **⌘P** on Mac) as the ball
+   approaches, then advance one frame at a time (**Ctrl+N** / **⌘N**) and press A on a chosen frame (hold it, then advance).
+   Try to land exactly on the perfect frame, then one either side. Watch the arrow on the
+   timing bar move one cell per frame.
+2. **Retune a shot.** In `rating_table` (`src/ca_shots.cpp`), make the pull ideal (3) to a
+   wide short ball. Play 15 pulls to short wide balls before and after. Watch the timing
+   bar's green section grow.
+3. **Change the timing windows** (`timing_windows`) to make everything ±1 frame tighter.
+   How much harder does it feel? (This is the "difficulty" knob we decided *not* to use
+   for Basic alone.)
+4. **Make blocking safer or riskier** with the `BLOCK_*` constants, e.g. set
+   `BLOCK_WIDE_MISS_PERCENT` to 0 and try blocking wide balls.
+5. **Add a leg spinner** to `bowler_profiles` (`include/ca_bowler.h`): negative
+   `bounce_movement`, and a `bad_ball_mix` heavy on long hops (drag-downs).
+6. **Add a bad-ball kind**, e.g. a yorker or a full toss: a new entry next to
+   `half_volley` in `src/ca_delivery.cpp`, a weight in `bad_ball_weights`, and a case in
+   `pick_bad_ball`. (The compiler will point out every bowler that needs the new weight.)
+7. *(Optional)* Play the archive ROM (`roms/phase-2-controls.gba`) and try every scheme
+   from this phase.

@@ -31,9 +31,6 @@ namespace
     // A skied catch is taken as the ball comes down to about this height.
     constexpr bn::fixed CATCH_HEIGHT = 1.8;
 
-    // When front and back foot shots rate the same, the game (picking footwork for you)
-    // goes forward to anything fuller than this, back to anything shorter.
-    constexpr bn::fixed BACK_FOOT_FROM_LENGTH = 5.5;
 }
 
 practice_scene::practice_scene() :
@@ -42,7 +39,7 @@ practice_scene::practice_scene() :
     _show_bowler();
     _show_tally();
     _show_help();
-    _hud.set_banner("PRESS A TO BOWL");
+    _hud.set_banner("PRESS A/B TO BOWL");
 }
 
 void practice_scene::update()
@@ -125,7 +122,7 @@ void practice_scene::_release()
     // Work out where and when the ball will arrive, before the player sees it.
     _preview = preview_delivery(*_plan);
     _line = classify_line(_preview.x_at_crease);
-    _length = classify_length(_preview.length);
+    _length = classify_length(_preview.length, bowler_profiles[_bowler_index].type);
 
     _shot_played = false;
     _shot = shot_type::LEAVE;
@@ -181,24 +178,21 @@ void practice_scene::_update_live()
 
 void practice_scene::_play_shot(const shot_intent& intent, int frame)
 {
-    footwork foot = intent.foot ? *intent.foot : _best_footwork(intent);
-    _shot = make_shot(intent.attacking, foot, intent.direction(foot));
+    // Basic: the game reads the length, like a batter's instinct (not always the best
+    // shot; Pro players can beat it by choosing the foot themselves).
+    footwork foot = intent.foot ? *intent.foot : _natural_footwork();
+    _shot = make_shot(intent.attacking, foot, intent.direction);
     _shot_played = true;
 
     int rating = shot_rating(_shot, _line, _length);
-
-    if(intent.on_crease && rating > 0)
-    {
-        --rating;   // no footwork chosen: stuck on the crease
-    }
     int contact_frame = foot == footwork::FRONT ? _preview.front_contact_frame :
                                                   _preview.back_contact_frame;
     int error = frame - contact_frame;
     timing_grade grade = grade_timing(error, rating, is_defensive(_shot));
 
-    _outcome = resolve_shot(_shot, intent.lofted, grade, rating, _random);
+    _outcome = resolve_shot(_shot, intent.lofted, grade, rating, _line, _random);
 
-    if(makes_contact(grade))
+    if(makes_contact(grade) && _outcome.type != outcome_type::PLAYED_AND_MISSED)
     {
         _hit_frame = bn::max(frame, contact_frame);
     }
@@ -216,9 +210,7 @@ void practice_scene::_play_shot(const shot_intent& intent, int frame)
     {
         bn::string<48> text;
         bn::ostringstream stream(text);
-        // Keep within ~232 px; "FRAMES" is dropped to make room for "ON CREASE".
-        stream << timing_name(grade) << " (" << (error > 0 ? "+" : "") << error
-               << (intent.on_crease ? ") ON CREASE" : " FRAMES)");
+        stream << timing_name(grade) << " (" << (error > 0 ? "+" : "") << error << " FRAMES)";
         _hud.set_line(4, text);
     }
 }
@@ -244,7 +236,7 @@ void practice_scene::_check_catch()
             _flight->stop();
         }
     }
-    else if(_outcome.type == outcome_type::CAUGHT)
+    else if(_outcome.type == outcome_type::CAUGHT || _outcome.type == outcome_type::CAUGHT_AND_BOWLED)
     {
         if(_flight->velocity().h < 0 && position.h <= CATCH_HEIGHT)
         {
@@ -296,20 +288,10 @@ void practice_scene::_finish_ball()
     _show_help();
 }
 
-footwork practice_scene::_best_footwork(const shot_intent& intent) const
+footwork practice_scene::_natural_footwork() const
 {
-    shot_type front = make_shot(intent.attacking, footwork::FRONT, intent.direction(footwork::FRONT));
-    shot_type back = make_shot(intent.attacking, footwork::BACK, intent.direction(footwork::BACK));
-    int front_rating = shot_rating(front, _line, _length);
-    int back_rating = shot_rating(back, _line, _length);
-
-    if(front_rating != back_rating)
-    {
-        return back_rating > front_rating ? footwork::BACK : footwork::FRONT;
-    }
-
-    // Equally good: go by the actual length, like a batter reading it.
-    return _preview.length >= BACK_FOOT_FROM_LENGTH ? footwork::BACK : footwork::FRONT;
+    bn::fixed back_from = back_foot_from_length(bowler_profiles[_bowler_index].type);
+    return _preview.length >= back_from ? footwork::BACK : footwork::FRONT;
 }
 
 void practice_scene::_show_bowler()

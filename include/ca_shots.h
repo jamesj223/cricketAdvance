@@ -16,6 +16,7 @@
 
 #include "bn_optional.h"
 #include "ca_world.h"
+#include "ca_bowler.h"
 
 namespace bn
 {
@@ -62,7 +63,7 @@ namespace ca
         SQUARE_DRIVE,       // front foot, point
         GUIDE,              // front foot, third man
         LEG_GLANCE,         // front foot, fine leg
-        FLICK,              // front foot, square leg
+        CLIP,               // front foot, square leg (off the pads)
         BACK_FOOT_DRIVE,    // back foot, cover
         LATE_CUT,           // back foot, third man
         HOOK,               // back foot, fine leg
@@ -72,25 +73,14 @@ namespace ca
 
     constexpr int RATED_SHOT_COUNT = 16;    // every shot except LEAVE
 
-    // What the player asked for.
-    //  - direction can differ by foot: Basic V1's "off side" means a cover drive off the
-    //    front foot but a cut off the back foot. V2 schemes set both the same.
-    //  - foot is empty when the game picks the footwork (whichever suits the ball better).
-    //  - on_crease: Pro V2 with neither (or both) feet chosen. The game picks the better
-    //    foot, but the shot is a notch worse: you were stuck on the crease.
+    // What the player asked for. foot is empty when the game picks the footwork (from
+    // the length, like a batter's instinct).
     struct shot_intent
     {
         bool attacking = true;
-        shot_direction front_direction = shot_direction::STRAIGHT;
-        shot_direction back_direction = shot_direction::STRAIGHT;
+        shot_direction direction = shot_direction::STRAIGHT;
         bn::optional<footwork> foot;
         bool lofted = false;
-        bool on_crease = false;
-
-        [[nodiscard]] shot_direction direction(footwork for_foot) const
-        {
-            return for_foot == footwork::FRONT ? front_direction : back_direction;
-        }
     };
 
     [[nodiscard]] shot_type make_shot(bool attacking, footwork foot, shot_direction direction);
@@ -116,7 +106,13 @@ namespace ca
     };
 
     [[nodiscard]] line_zone classify_line(bn::fixed x_at_crease);
-    [[nodiscard]] length_zone classify_length(bn::fixed length_from_stumps);
+    // Length zones depend on the bowler type: spin is slower and bounces lower, so the
+    // same pitching spot plays shorter (easier to go back to) than it would for pace.
+    [[nodiscard]] length_zone classify_length(bn::fixed length_from_stumps, bowler_type type);
+
+    // When front- and back-foot shots rate the same, the length the game (picking
+    // footwork for you) goes back to, rather than forward.
+    [[nodiscard]] bn::fixed back_foot_from_length(bowler_type type);
     [[nodiscard]] const char* line_zone_name(line_zone line);
     [[nodiscard]] const char* length_zone_name(length_zone length);
 
@@ -153,6 +149,7 @@ namespace ca
         EDGED,          // edge that falls safe (0-1 runs)
         CAUGHT,         // skied / lofted catch
         CAUGHT_BEHIND,  // edge carried to the keeper / slips
+        CAUGHT_AND_BOWLED,  // leading edge back to the bowler
         PLAYED_AND_MISSED,
         LEFT,
         BOWLED,
@@ -166,8 +163,10 @@ namespace ca
     };
 
     // Decides the outcome of a shot that made contact (or missed: TOO_EARLY/TOO_LATE).
+    // The line matters for blocks: blocking a wide ball usually misses it.
+    // PLAYED_AND_MISSED means the bat never touches the ball (no hit_velocity).
     [[nodiscard]] shot_outcome resolve_shot(shot_type shot, bool lofted, timing_grade grade,
-                                            int rating, bn::random& random);
+                                            int rating, line_zone line, bn::random& random);
 
     [[nodiscard]] bool is_out(outcome_type type);
     [[nodiscard]] const char* outcome_banner(const shot_outcome& outcome);

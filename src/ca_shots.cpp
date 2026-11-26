@@ -71,7 +71,7 @@ namespace
             /* YORKER */ { 0,   0,   0,   0 },
             /* FULL   */ { 0,   0,   0,   1 },
             /* GOOD   */ { 0,   0,   1,   2 },
-            /* SHORT  */ { 0,   2,   3,   3 },
+            /* SHORT  */ { 0,   3,   3,   2 },   // too wide: cut it; down leg: hook it
         },
         // SQUARE_DRIVE: front foot to point; full and wide
         {
@@ -87,17 +87,19 @@ namespace
             /* GOOD   */ { 2,   2,   0,   0 },
             /* SHORT  */ { 1,   1,   0,   0 },
         },
-        // LEG_GLANCE: front foot to fine leg; full on the pads
+        // LEG_GLANCE: front foot to fine leg; best on the pads / down leg, risky on the
+        // stumps (playing across the line), useless outside off
         {
             /* YORKER */ { 0,   0,   1,   2 },
-            /* FULL   */ { 0,   0,   2,   3 },
-            /* GOOD   */ { 0,   0,   1,   2 },
+            /* FULL   */ { 0,   0,   1,   3 },
+            /* GOOD   */ { 0,   0,   1,   3 },
             /* SHORT  */ { 0,   0,   0,   1 },
         },
-        // FLICK: front foot to square leg; full on the stumps / pads
+        // CLIP: front foot to square leg; best on the pads, risky on the stumps,
+        // useless outside off
         {
-            /* YORKER */ { 0,   0,   2,   2 },
-            /* FULL   */ { 0,   1,   2,   3 },
+            /* YORKER */ { 0,   0,   1,   2 },
+            /* FULL   */ { 0,   0,   1,   3 },
             /* GOOD   */ { 0,   0,   1,   2 },
             /* SHORT  */ { 0,   0,   0,   0 },
         },
@@ -172,7 +174,7 @@ namespace
         -80,    // SQUARE_DRIVE
         -140,   // GUIDE
         140,    // LEG_GLANCE
-        75,     // FLICK
+        75,     // CLIP
         -50,    // BACK_FOOT_DRIVE
         -130,   // LATE_CUT
         125,    // HOOK
@@ -191,6 +193,24 @@ namespace
     constexpr int OFF_CAUGHT_EDGE_ANGLE = -172;
     constexpr int LEG_CAUGHT_EDGE_ANGLE = 174;
     constexpr int CAUGHT_EDGE_RANDOM = 5;
+    constexpr int BAT_PAD_ANGLE = 60;
+
+    // =====================================================================================
+    // Blocking risk. A block is safe on the stumps with good timing; the risk comes from
+    // the line (reaching for wide ones) and from mistiming.
+    // =====================================================================================
+    // Blocking a wide ball: usually beaten outright; otherwise a thick edge.
+    constexpr int BLOCK_WIDE_MISS_PERCENT = 50;
+    constexpr int BLOCK_WIDE_EDGE_CAUGHT_PERCENT = 40;
+    // Blocking outside off (the "5th stump" channel): chance of an edge, by timing grade
+    // (TOO_EARLY, EARLY, GOOD, PERFECT, LATE, TOO_LATE).
+    constexpr int BLOCK_OFF_EDGE_PERCENT[6] = { 0, 25, 10, 5, 25, 0 };
+    constexpr int BLOCK_EDGE_CAUGHT_PERCENT = 50;
+    // The wrong block for the ball (rating 0, e.g. forward to a short one): fending at it.
+    constexpr int BLOCK_WRONG_SHOT_EDGE_PERCENT = 20;
+    // Mistimed blocks: early = leading edge (return catch or bat-pad), late = thin edge.
+    constexpr int BLOCK_EARLY_CAUGHT_PERCENT = 20;
+    constexpr int BLOCK_LATE_CAUGHT_PERCENT = 20;
 
     bool chance(bn::random& random, int percent)
     {
@@ -220,10 +240,18 @@ namespace
         bn::fixed up;
     };
 
-    hit_profile hit_profile_for(const shot_outcome& outcome)
+    hit_profile hit_profile_for(shot_type shot, const shot_outcome& outcome)
     {
         switch(outcome.type)
         {
+            case outcome_type::CAUGHT_AND_BOWLED:
+                return { 9, bn::fixed(5.5) };      // lobs back ~7 m to the bowler
+            case outcome_type::CAUGHT:
+                if(is_defensive(shot))
+                {
+                    return { 5, 4 };                // bat-pad: pops up to a close fielder
+                }
+                return { 20, 11 };
             case outcome_type::FOUR:
                 return { 32, 1 };
             case outcome_type::SIX:
@@ -236,8 +264,6 @@ namespace
                 // Fast and flat enough to carry ~14 m to a keeper standing back, still
                 // around waist height (at 20 m/s it would land just short).
                 return { 26, bn::fixed(3.5) };
-            case outcome_type::CAUGHT:
-                return { 20, 11 };
             default:
                 break;
         }
@@ -282,10 +308,19 @@ namespace
             angle = leg_side_shot ? LEG_CAUGHT_EDGE_ANGLE : OFF_CAUGHT_EDGE_ANGLE;
             spread = CAUGHT_EDGE_RANDOM;
         }
+        else if(outcome.type == outcome_type::CAUGHT_AND_BOWLED)
+        {
+            angle = 0;
+            spread = CAUGHT_EDGE_RANDOM;
+        }
+        else if(outcome.type == outcome_type::CAUGHT && is_defensive(shot))
+        {
+            angle = random.get_int(2) ? BAT_PAD_ANGLE : -BAT_PAD_ANGLE;   // short leg / silly point
+        }
 
         angle += random.get_int(-spread, spread + 1);
 
-        hit_profile profile = hit_profile_for(outcome);
+        hit_profile profile = hit_profile_for(shot, outcome);
         bn::fixed sin = bn::degrees_lut_sin_safe(angle);
         bn::fixed cos = bn::degrees_lut_sin_safe(angle + 90);
 
@@ -308,7 +343,7 @@ shot_type make_shot(bool attacking, footwork foot, shot_direction direction)
         { shot_type::SQUARE_DRIVE,   shot_type::CUT },               // POINT
         { shot_type::GUIDE,          shot_type::LATE_CUT },          // THIRD_MAN
         { shot_type::LEG_GLANCE,     shot_type::HOOK },              // FINE_LEG
-        { shot_type::FLICK,          shot_type::PULL },              // SQUARE_LEG
+        { shot_type::CLIP,           shot_type::PULL },              // SQUARE_LEG
         { shot_type::ON_DRIVE,       shot_type::SLOG },              // MIDWICKET
     };
     return shots[int(direction)][foot == footwork::FRONT ? 0 : 1];
@@ -341,7 +376,7 @@ const char* shot_name(shot_type shot)
 {
     constexpr const char* names[] = {
         "FORWARD DEFENCE", "BACK FOOT DEFENCE", "COVER DRIVE", "STRAIGHT DRIVE", "ON DRIVE",
-        "CUT", "BACK FOOT PUNCH", "PULL", "SQUARE DRIVE", "GUIDE", "LEG GLANCE", "FLICK",
+        "CUT", "BACK FOOT PUNCH", "PULL", "SQUARE DRIVE", "GUIDE", "LEG GLANCE", "CLIP",
         "BACK FOOT DRIVE", "LATE CUT", "HOOK", "SLOG", "LEAVE",
     };
     return names[int(shot)];
@@ -368,24 +403,51 @@ line_zone classify_line(bn::fixed x)
     return line_zone::LEG;
 }
 
-length_zone classify_length(bn::fixed length)
+namespace
 {
-    if(length < 2)
+    // Length zone boundaries, metres in front of the stumps: [yorker | full | good | short].
+    struct length_bands
+    {
+        bn::fixed full_from;
+        bn::fixed good_from;
+        bn::fixed short_from;
+        bn::fixed back_foot_from;   // tie-break for auto footwork (see header)
+    };
+
+    constexpr length_bands pace_bands = { 2, 4, 6.5, 5.5 };
+    constexpr length_bands spin_bands = { 1.25, 3, 4.75, 4 };
+
+    const length_bands& bands_for(bowler_type type)
+    {
+        return type == bowler_type::SPIN ? spin_bands : pace_bands;
+    }
+}
+
+length_zone classify_length(bn::fixed length, bowler_type type)
+{
+    const length_bands& bands = bands_for(type);
+
+    if(length < bands.full_from)
     {
         return length_zone::YORKER;
     }
 
-    if(length < 4)
+    if(length < bands.good_from)
     {
         return length_zone::FULL;
     }
 
-    if(length < bn::fixed(6.5))
+    if(length < bands.short_from)
     {
         return length_zone::GOOD;
     }
 
     return length_zone::SHORT;
+}
+
+bn::fixed back_foot_from_length(bowler_type type)
+{
+    return bands_for(type).back_foot_from;
 }
 
 const char* line_zone_name(line_zone line)
@@ -460,7 +522,8 @@ bool makes_contact(timing_grade grade)
     return grade != timing_grade::TOO_EARLY && grade != timing_grade::TOO_LATE;
 }
 
-shot_outcome resolve_shot(shot_type shot, bool lofted, timing_grade grade, int rating, bn::random& random)
+shot_outcome resolve_shot(shot_type shot, bool lofted, timing_grade grade, int rating,
+                          line_zone line, bn::random& random)
 {
     shot_outcome outcome;
 
@@ -494,20 +557,43 @@ shot_outcome resolve_shot(shot_type shot, bool lofted, timing_grade grade, int r
 
     if(is_defensive(shot))
     {
-        // Defence: safe unless it's badly wrong.
-        if(score >= 3)
+        // Defence: safe on the stumps if timed well. Line and timing bring the risk.
+        if(line == line_zone::WIDE_OFF)
         {
-            outcome.type = outcome_type::BLOCKED;
+            if(chance(random, BLOCK_WIDE_MISS_PERCENT))
+            {
+                outcome.type = outcome_type::PLAYED_AND_MISSED;     // beaten: no contact
+                return outcome;
+            }
+
+            edge(BLOCK_WIDE_EDGE_CAUGHT_PERCENT);
         }
         else
         {
-            // Score 2: 20% chance of a nick/glove carrying; score 1: 35%.
-            int caught_percent = score == 2 ? 20 : 35;
-            outcome.type = outcome_type::BLOCKED;
+            int edge_percent = line == line_zone::OFF ? BLOCK_OFF_EDGE_PERCENT[int(grade)] : 0;
 
-            if(chance(random, caught_percent))
+            if(rating == 0)
             {
-                outcome.type = outcome_type::CAUGHT_BEHIND;
+                edge_percent += BLOCK_WRONG_SHOT_EDGE_PERCENT;
+            }
+
+            if(chance(random, edge_percent))
+            {
+                edge(BLOCK_EDGE_CAUGHT_PERCENT);
+            }
+            else if(grade == timing_grade::EARLY && chance(random, BLOCK_EARLY_CAUGHT_PERCENT))
+            {
+                // Bat comes down too soon: leading edge, back to the bowler or bat-pad.
+                outcome.type = chance(random, 50) ? outcome_type::CAUGHT_AND_BOWLED :
+                                                    outcome_type::CAUGHT;
+            }
+            else if(grade == timing_grade::LATE && chance(random, BLOCK_LATE_CAUGHT_PERCENT))
+            {
+                outcome.type = outcome_type::CAUGHT_BEHIND;     // thin edge
+            }
+            else
+            {
+                outcome.type = outcome_type::BLOCKED;
             }
         }
     }
@@ -583,7 +669,7 @@ shot_outcome resolve_shot(shot_type shot, bool lofted, timing_grade grade, int r
 bool is_out(outcome_type type)
 {
     return type == outcome_type::CAUGHT || type == outcome_type::CAUGHT_BEHIND ||
-            type == outcome_type::BOWLED;
+            type == outcome_type::CAUGHT_AND_BOWLED || type == outcome_type::BOWLED;
 }
 
 const char* outcome_banner(const shot_outcome& outcome)
@@ -602,6 +688,8 @@ const char* outcome_banner(const shot_outcome& outcome)
             return "CAUGHT!";
         case outcome_type::CAUGHT_BEHIND:
             return "CAUGHT BEHIND!";
+        case outcome_type::CAUGHT_AND_BOWLED:
+            return "CAUGHT & BOWLED!";
         case outcome_type::PLAYED_AND_MISSED:
             return "PLAYED AND MISSED";
         case outcome_type::LEFT:
