@@ -58,6 +58,9 @@ it on the next boot). For a green cart shell, add this line to `Labels/cart_shel
 `roms/phase-N.gba` is the ROM at the end of each phase (committed, so you can look back at
 progress). At the end of a phase: `cp cricketAdvance.gba roms/phase-N.gba`.
 
+`roms/phase-2-controls.gba` is a Phase 2 extra: every control scheme tried during the
+phase, selectable with SELECT. Its source is the `phase-2-archive` branch (not merged).
+
 ## Layout
 
 - `src/`, `include/` — game code

@@ -63,8 +63,9 @@ Full notes and reasoning in `docs/design.md` ("Controls — playtest notes",
 - [x] Banner between balls says "PRESS A/B TO BOWL"
 - [x] Shot ratings from hardware testing: spin has its own length zones; leg glance /
       clip (renamed from flick) best on the pads; pull to short balls by line
-- [ ] (Do last, before 2.5) Archive ROM with every control scheme tested in Phase 2 (old Basic/Pro with
+- [x] (Do last, before 2.5) Archive ROM with every control scheme tested in Phase 2 (old Basic/Pro with
       3-way side, A+B chord loft, scheme 1, etc.) selectable, for looking back
+      → `roms/phase-2-controls.gba`, built from the `phase-2-archive` branch
 - [x] Phase-end: write the Phase 2 section of `docs/learnings.md` with exercises,
       save `roms/phase-2.gba`
 
