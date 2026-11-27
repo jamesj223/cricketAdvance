@@ -15,6 +15,7 @@ namespace ca
         stumps_view();
 
         void set_broken(bool broken);
+        void set_visible(bool visible) { _sprite.set_visible(visible); }
 
     private:
         bn::sprite_ptr _sprite;

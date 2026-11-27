@@ -34,6 +34,8 @@ namespace ca
 
         [[nodiscard]] bn::fixed z() const { return _z; }
 
+        void set_visible(bool visible) { _sprite.set_visible(visible); }
+
     private:
         bn::sprite_ptr _sprite;
         bn::fixed _z;

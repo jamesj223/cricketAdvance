@@ -15,6 +15,7 @@
 #include "ca_controls.h"
 #include "ca_debug_hud.h"
 #include "ca_delivery.h"
+#include "ca_field_view.h"
 #include "ca_game_mode.h"
 #include "ca_save.h"
 #include "ca_scoreboard.h"
@@ -40,6 +41,9 @@ namespace ca
             WAITING,    // between balls
             RUN_UP,     // short pause before release
             LIVE,       // ball in play
+            TO_FIELD,   // fading over to the field view
+            FIELD,      // the top-down field view
+            TO_PITCH,   // fading back to the batting view
         };
 
         game_mode _mode;
@@ -74,7 +78,11 @@ namespace ca
         sounds::bat_contact _contact;   // how the hit will sound
         vec3 _hit_position;     // where the bat met it
         int _bounces_heard = 0; // bounces we've already played a sound for
-        int _crowd_delay = 0;   // frames until the boundary cheer (0 = none pending)
+        int _field_delay = 0;   // frames following the ball before cutting to the field
+        int _banner_delay = 0;  // frames until the result banner (0 = none pending)
+        bool _banner_queued = false;    // this ball's result banner is shown / on its way
+        int _transition_frame = 0;
+        bn::optional<field_view> _field;
 
         // The innings.
         scoreboard _scoreboard;
@@ -85,6 +93,7 @@ namespace ca
         bool _innings_over = false;
         bool _new_best = false;
         int _game_over_delay = 0;   // frames until the "GAME OVER" line (0 = none pending)
+        int _over_card_delay = 0;   // frames until the next over's card (0 = none pending)
         int _bowlers[2] = { 0, 1 }; // Quick Play: the two bowlers, one from each end
         int _over_bowler = 0;       // which of them has this over
 
@@ -96,7 +105,15 @@ namespace ca
         void _play_bounce_sounds();
         void _check_catch();
         void _finish_ball();
-        [[nodiscard]] int _frames_until_catch() const;
+        void _update_transition();
+        void _show_field_view(bool field);
+        void _update_field();
+        void _show_over_card();
+        void _queue_banner(int delay);
+        void _show_pending_banner();
+        void _place_banners();
+        [[nodiscard]] const bn::regular_bg_item& _pitch_item() const;
+        [[nodiscard]] bool _aids() const { return _mode == game_mode::PRACTICE; }
 
         [[nodiscard]] footwork _natural_footwork() const;
         void _show_bowler();

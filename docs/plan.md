@@ -93,10 +93,18 @@ Then the game loop:
 - [x] Practice mode: the Phase 2 nets (L/R bowler, endless, runs/wickets)
 - [x] High score per control scheme (and last scheme) saved to SRAM; BEST on scoreboard
 - [ ] Playtest the menu / modes / saving over the weekend trip
-- [ ] After-contact presentation: follow ball off screen → field view (test transitions)
-- [ ] Simple fielders (squares) that slide to the ball; auto running; caught
-- [ ] Event banners: proper presentation (slide-in, milestones 50/100); simple text
-  versions of 4, 6, wicket, end of over and game over exist
+- [x] After-contact presentation: follow the ball ~1/3 s, fade to a top-down field view
+  (1 px = 1 m), fade back. A/B skips
+- [x] Simple fielders: a fixed 5-4 field; the nearest to the ball's path cuts it off /
+  chases it / takes the catch; batters run the runs. **Cosmetic for now**: the result
+  is still decided at the hit (see design.md)
+- [x] Event banners slide in on a semi-transparent band (alpha blending); over cards
+  ("OVER 2" / bowler) before each over, including the first
+- [x] Playtest fielding / transitions / banners (round 1: see design.md)
+- [x] Playtest round 2: banner / fade delays, 3s, keeper, Quick Play without aids, louder sound, outswinger
+- [ ] Playtest round 3: sliding timing bar, marker kept + banners dodging it, Practice length zones; sound on RG SP; outswinger cover drives
+- [ ] Quick Play pause menu (START mid-innings), so the menu is reachable without losing the innings
+- [ ] Later: milestone banners (50, 100); fielders deciding the result; run outs
 
 ## Phase 4 — Depth
 - [ ] Placeholder bowler sprite: run-up, delivery stride, ball visible before release

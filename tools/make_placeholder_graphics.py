@@ -237,9 +237,42 @@ BG_PALETTE = [
 ]
 
 
-def make_background(preview=False):
+# Practice mode's pitch: TV-style length zones painted on (yorker | full | good | short),
+# metres in front of the batter's stumps. Keep in sync with pace_bands / spin_bands in
+# src/ca_shots.cpp. "Short" is only painted out to SHORT_TO (beyond that it's a long hop).
+ZONE_COLOURS = [
+    (110, 100, 230),  # 8 yorker: blue-purple
+    (225, 205, 80),   # 9 full: yellow
+    (120, 185, 90),   # 10 good: green
+    (210, 120, 90),   # 11 short: red
+]
+ZONE_BANDS = {
+    "pace": (2.0, 4.0, 6.5, 10.0),
+    "spin": (1.25, 3.0, 4.75, 8.0),
+}
+ZONE_TINT = 0.55    # how much of the zone colour is mixed into the pitch colour
+
+
+def zone_palette():
+    pitch = BG_PALETTE[3]
+    tinted = [tuple(round(p + (c - p) * ZONE_TINT) for p, c in zip(pitch, colour))
+              for colour in ZONE_COLOURS]
+    return BG_PALETTE + tinted
+
+
+def length_zone(length, bands):
+    """Palette index for a spot this far in front of the batter's stumps, or None."""
+    if length < 0 or length >= bands[3]:
+        return None
+    for index, edge in enumerate(bands[:3]):
+        if length < edge:
+            return 8 + index
+    return 11
+
+
+def make_background(preview=False, zones=None):
     size = 256
-    img = indexed(size, BG_PALETTE)
+    img = indexed(size, zone_palette() if zones else BG_PALETTE)
     px = img.load()
     for py in range(size):
         for pxx in range(size):
@@ -252,7 +285,8 @@ def make_background(preview=False):
             if abs(x) <= PITCH_HALF_W and -1.4 <= z <= 21.5:
                 # Slightly worn area where bowlers land / batter stands.
                 worn = abs(x) < 0.5 and (z < 2.4 or z > 17.7)
-                px[pxx, py] = 7 if worn else 3
+                zone = length_zone(STUMPS_Z[1] - z, ZONE_BANDS[zones]) if zones else None
+                px[pxx, py] = zone if zone else 7 if worn else 3
             else:
                 # Mowing stripes across the ground, every 4 m.
                 px[pxx, py] = 1 if int(math.floor(z / 4.0)) % 2 == 0 else 2
@@ -281,6 +315,11 @@ def make_background(preview=False):
         gap = max(1, round(STUMP_HALF_W * FOCAL / depth))
         for col in (mid - gap, mid, mid + gap):
             draw.line([(col, math.floor(base_y + 128)), (col, math.floor(top_y + 128))], fill=5)
+
+    if zones:
+        img.save(OUT / f"pitch_zones_{zones}.bmp")
+        (OUT / f"pitch_zones_{zones}.json").write_text('{ "type": "regular_bg", "bpp_mode": "bpp_4" }\n')
+        return
 
     img.save(OUT / "pitch.bmp")
 
@@ -314,13 +353,87 @@ def make_scoreboard():
     img.save(OUT / "scoreboard.bmp")
 
 
+# --- Field view (top-down) --------------------------------------------------------------
+# The whole ground from above, 1 pixel = 1 metre, batter's end at the top (like the TV
+# view), off side on the left. Keep these in sync with src/ca_field_view.cpp.
+FIELD_CENTRE_Y = -8         # screen y (centred coords) of the middle of the pitch
+BOUNDARY_RADIUS = 65        # metres
+INNER_CIRCLE_RADIUS = 27    # the 30-yard circle
+GROUND_CENTRE_Z = STUMPS_Z[1] / 2
+
+
+def make_field():
+    size = 256
+    palette = [
+        MAGENTA,            # 0 unused
+        (40, 110, 40),      # 1 grass light
+        (34, 96, 34),       # 2 grass dark
+        (20, 50, 90),       # 3 stands (outside the rope)
+        (240, 240, 230),    # 4 rope / creases / circle
+        (200, 180, 120),    # 5 pitch
+    ]
+    img = indexed(size, palette)
+    px = img.load()
+    cx, cy = 128, 128 + FIELD_CENTRE_Y
+    for y in range(size):
+        for x in range(size):
+            d = math.hypot(x + 0.5 - cx, y + 0.5 - cy)
+            if d > BOUNDARY_RADIUS + 0.5:
+                px[x, y] = 3
+            elif d > BOUNDARY_RADIUS - 0.5:
+                px[x, y] = 4
+            else:
+                px[x, y] = 1 if (y // 6) % 2 == 0 else 2
+    # The 30-yard circle: dotted.
+    for i in range(72):
+        a = i / 72 * math.tau
+        px[round(cx + INNER_CIRCLE_RADIUS * math.cos(a)), round(cy + INNER_CIRCLE_RADIUS * math.sin(a))] = 4
+    # The pitch: 3 m wide, stumps to stumps (z 0 at the bottom, 20.12 at the top).
+    top = round(cy - (STUMPS_Z[1] - GROUND_CENTRE_Z)) - 1
+    bottom = round(cy - (STUMPS_Z[0] - GROUND_CENTRE_Z)) + 1
+    for y in range(top, bottom + 1):
+        for x in range(cx - 1, cx + 2):
+            px[x, y] = 5
+    for y in (top + 1, bottom - 1):      # creases
+        for x in range(cx - 2, cx + 3):
+            px[x, y] = 4
+    img.save(OUT / "field.bmp")
+
+
+def make_field_dots():
+    # 8x8 frames: fielder, batter, ball, ball shadow.
+    img = indexed((8, 32), [MAGENTA, (250, 250, 245), (30, 30, 30), (30, 60, 160),
+                            (220, 30, 30), (20, 60, 20)])
+    draw = ImageDraw.Draw(img)
+    draw.ellipse([1, 1, 6, 6], fill=1, outline=2)               # fielder: white
+    draw.ellipse([1, 9, 6, 14], fill=3, outline=1)              # batter: blue, white edge
+    draw.rectangle([3, 19, 4, 20], fill=4)                      # ball: 2x2 red
+    draw.rectangle([3, 27, 4, 28], fill=5)                      # shadow
+    img.save(OUT / "field_dots.bmp")
+
+
+def make_banner_band():
+    # One 32x16 piece of the banner band (eight side by side span the screen; 64x16
+    # isn't a sprite shape the GBA has). Drawn semi-transparent by the game.
+    img = indexed((32, 16), [MAGENTA, (16, 24, 52), (210, 30, 30)])
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([0, 0, 31, 15], fill=1)
+    draw.line([(0, 0), (31, 0)], fill=2)
+    img.save(OUT / "banner_band.bmp")
+
+
 if __name__ == "__main__":
     make_sprites()
     make_batter()
     make_stumps()
     make_timing_bar()
     make_scoreboard()
+    make_field()
+    make_field_dots()
+    make_banner_band()
     make_background(preview="--preview" in sys.argv)
+    make_background(zones="pace")
+    make_background(zones="spin")
     for name, (x, z, h) in {
         "bowler stumps base": (0, 0, 0),
         "batter stumps base": (0, 20.12, 0),

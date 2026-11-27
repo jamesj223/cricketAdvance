@@ -36,6 +36,18 @@ Score as many runs as possible. High score saved.
 - **Quick Play** — 1 wicket, bat until you're out, high score saved. (Phase 3.)
   Two random bowlers per innings, one from each end, swapping every over. High score
   saved per control scheme (Pro is harder, so it gets its own).
+- **Over cards:** before each Quick Play over (including the first), a banner card
+  "OVER n" / bowler name. After an over, the last ball's banner shows first.
+- **High scores per control scheme — open.** The user isn't sure about separate bests.
+  Alternative: one best (or a leaderboard) that records *which* scheme it was set with,
+  shown off like Mario Kart Wii shows motion-control wins: an incentive to master Pro.
+- **Field view (Phase 3, first pass):** after a shot into the field (runs, 4, 6, outfield
+  catch), follow the ball briefly, fade to a top-down view of the whole ground and act
+  the result out: a fixed 5-4 field (slip, gully, point, cover, mid off | mid on,
+  midwicket, square leg, fine leg; plus keeper and bowler), the nearest fielder to the
+  ball's path chases / cuts off / catches, the batters run. The result is decided at
+  the hit as before; **later** the fielders could decide it (gaps, misfields, run outs),
+  and field settings could vary per bowler / match situation.
 - **Practice** — the Phase 2 nets as their own mode: pick the bowler (L/R), endless,
   score shown as runs/wickets. **Open:** which batting aids (timing bar, shot rating,
   "what the ball was") stay in the real modes. For now both modes have all of them.
@@ -60,6 +72,85 @@ Ricky Ponting Cricket-style misspellings). Pencilled in:
   de Grandhomme. (A Hadlee-era side was considered, but Hadlee aside the attack is less
   memorable.)
 - **24 IND:** Bumrah, Ashwin, Jadeja, Siraj, Kuldeep
+
+### Mode rethink (user, Phase 3 overnight ideas — still open)
+
+- **Quick Play:** settled. Single wicket, bat until out, random bowlers and conditions.
+- **Custom:** choose the format and conditions. The famous attacks could live here, in
+  Challenge, or both.
+- **Challenge:** the famous attacks, each with a fixed format and conditions, chasing an
+  iconic total. Spread the challenges across formats. Ideas so far:
+  - **05 ENG:** Test, green pitch, overcast. Chase 282 or 420.
+  - **07 AUS:** Test, hot, flat pitch. Chase 557 or 648.
+  - **24 IND:** T20 (their T20 World Cup win, deliberately, despite the Test attack).
+    Chase 176. Conditions TBD.
+  - Leaning: AUS, ENG, NZ (WTC) as Test; SA Test (maybe T20); SL and PAK as ODI; WI
+    Test or maybe ODI.
+- **T20 / ODI / Test (Custom and Challenge) need two batters at the crease** (Quick Play
+  stays single-batter):
+  - rotating the strike
+  - confidence and fatigue tracked per batter
+  - a full batting card that pages or scrolls, given the small screen
+- **Player-team batter names — open:** generic ("Batter 1"), Ponting-style misspellings,
+  or player-editable. Name entry on a GBA needs an on-screen keyboard. That's doable,
+  but it's a chunk of UI work.
+- **Unlocks:** beating a team's Challenge unlocks their attack in Custom. Locked
+  attacks still show when scrolling the options, greyed out with a lock symbol.
+
+### Phase 3 playtest 1 (field view, banners, over cards)
+
+The user tested in mGBA and on the RG SP.
+- No crashes. Fielder speeds look fine. "Fast bowler, short ball, pull shot, FOUR —
+  felt so good!" First 50 took about 30 minutes, and a milestone banner was missed.
+- **Result banner came up too fast.** It now waits 30 frames after the ball is dead,
+  or 15 frames after the moment in the field view. Bowling waits for it.
+- **The cut to the field view was too quick.** It now follows the ball for 45 frames
+  before fading, not 20. The fade back was good.
+- **The keeper should come up to take throws when standing back.** He now jogs up at
+  6 m/s once the ball's hit.
+- **No 3s ever.** The outcome tables had no 3 at all, and any ball through the
+  infield seemed to go for 4. 3s are now added (chased down short of the rope). Ground,
+  score 5: 45% four, 25% three, 30% two. Score 4: 10% three, 45% two, 45% one.
+  Lofted, score 4, not caught: 30% three.
+- **Quick Play shows no aids:** no shot / timing / "what the ball was" lines and no
+  button hints mid-innings. The timing bar stays, moved lower. Practice keeps them all.
+- **START = menu, not SELECT.** In Quick Play that's only between innings, for now.
+  Practice: SELECT cycles the bowler, since L/R are batting buttons and were changing
+  the bowler by accident.
+- **Sound too quiet on the RG SP; some shots seemed silent.** The bat sounds had half
+  the loudness of the crowd (short clicks with low energy), and "clean" (middled drives)
+  was the quietest. The bat sounds are now soft-clipped up to the crowd's loudness, and
+  the playback volumes are raised.
+- **Only 4 bowler types.** There had only ever been 4. A right-arm outswinger is now
+  added (122-135 km/h, full, swinging away).
+
+### Phase 3 playtest 2
+
+- Transitions, banners, the keeper and 3s all feel better. Sound is louder in mGBA; still
+  to test on the RG SP.
+- Quick Play without the text feels empty, but it's the right call: the aids belong in
+  Practice.
+- **Timing bar:** it now slides up from behind the scoreboard strip. That needs no
+  masking: the strip is bg priority 2 and the bar's sprites are priority 3. It appears 20
+  frames after the shot, or for a shot into the field once the batting view is back.
+- **Pitch marker:** it used to be lost over the field view and is now restored on the
+  way back. Banners now move off the marker: below it for full balls, above it for
+  shorter ones. This is an experiment, to see how it feels.
+- **Practice length zones:** the pitch has TV-style length zones painted on (yorker
+  blue-purple, full yellow, good green, short red, out to 10 m for pace and 8 m for spin).
+  They're two pre-rendered pitch backgrounds, swapped by bowler type.
+- **Outswinger:** feels fine and gets lots of caught behinds. **Open:** the game seems to
+  want you to play him straighter than instinct says. The cause:
+  - the line is classified where the ball passes the crease, not where it's heading
+  - an outswinger pitched middle-and-off often still counts as "on the stumps"
+  - the rating table gives a cover drive to a full ball on the stumps a 1 (risky, narrow
+    timing window); a straight drive gets a 3 (ideal)
+
+  That's defensible cricket ("don't play across the line"), but it may feel wrong
+  against a ball you can see swinging away. Options if it still bugs after more play:
+  - a cover drive to FULL/STUMPS gets a 2
+  - judge the line a little past the stumps for swinging balls
+  - a per-bowler "drive-able" bias
 
 ## Camera / presentation
 
@@ -505,6 +596,27 @@ After each ball, briefly show *why* it went the way it did. Ideas:
   like your choice)? Does fatigue also affect running?
 - Display: two small bars along the top of the screen (see UI / HUD).
 
+### Achievements — Add these later. Phase 6
+
+| Name | Achievement | Notes |
+| --- | --- | --- |
+| Start again! | Make a 50 in any game mode | Individual score, either in Quick play or for a single batter in Custom/Challenge |
+| Raise the bat! | Make a 100 in any game mode | Individual score, either in Quick play or for a single batter in Custom/Challenge |
+| Double Up! | Make a 200 in any game mode | Individual score, either in Quick play or for a single batter in Custom/Challenge |
+| Triples is best | Make a 300 in any game mode | Individual score, either in Quick play or for a single batter in Custom/Challenge |
+| Lara who? | Make a 400 in any game mode | Individual score, either in Quick play or for a single batter in Custom/Challenge |
+| Quack! | Make a duck in any game mode | |
+| Quack quack! | Make a golden duck in any game mode | Don't count a golden duck for both achievements |
+| TBD | T20 High Score | 344 |
+| TBD | ODI High Score | 498 |
+| TBD | TEST High Score | 952 |
+| Good start! | A 100-run opening partnership. | Custom or challenge mode |
+| Get him up the order! | Score 100 with a number 11 | Custom or challenge mode |
+| Innovative! | Hit a ramp or uppercut for six | Leave those shots undocumented so players have to discover them |
+| World beater! | Beating every classic team in challenge mode | |
+
+These need SRAM space for flags. A bitfield is enough.
+
 ## Out of scope (for now)
 
-Fielding/bowling as the player, multiple batters, partnerships, Test matches, sound.
+Fielding/bowling as the player. (Multiple batters, partnerships and Test matches are planned: see "Mode rethink".)

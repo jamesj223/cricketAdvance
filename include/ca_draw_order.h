@@ -11,6 +11,7 @@ namespace ca::draw_order
 {
     constexpr int TEXT = -10;
     constexpr int TIMING_BAR = -9;
+    constexpr int BANNER_BAND = -9;     // behind the banner text
     constexpr int BALL_IN_FRONT = 0;
     constexpr int SHADOW_IN_FRONT = 1;
     constexpr int BATTER = 2;

@@ -225,6 +225,28 @@ namespace ca
             .bounce_restitution = 0.55,
             .bounce_friction = 0.88,
         },
+        {
+            .name = "RIGHT-ARM OUTSWING",
+            .type = bowler_type::PACE,
+            .arm = bowling_arm::RIGHT,
+            .side = wicket_side::OVER,
+            .speed_min_kmh = 122,
+            .speed_max_kmh = 135,
+            .release_width = 0.45,
+            .release_h = 2.2,
+            .target_length = 3.5,           // full: tempting the drive
+            .length_spread = 1.75,
+            .target_line = -0.08,           // pitch middle-and-off, carry away past off stump
+            .line_spread = 0.35,
+            .bad_ball_percent = 10,
+            .bad_ball_mix = { .half_volley = 3, .long_hop = 1, .width = 4, .pads = 2 },
+            .air_movement = -3.0,           // always swings away from a right-hander
+            .air_movement_variation = 1.0,  // so -2 to -4
+            .bounce_movement = 0,
+            .bounce_movement_variation = 0.5,
+            .bounce_restitution = 0.55,
+            .bounce_friction = 0.88,
+        },
     };
 
     // Sideways release position (signed x). Right-arm over and left-arm round release

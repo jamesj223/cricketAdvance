@@ -70,7 +70,25 @@ void ball_view::update(const ball_flight& flight, bn::fixed batter_z)
         camera::screen_point marker_screen = camera::project(flight.bounce_position());
         _marker.set_position(marker_screen.x, marker_screen.y);
         _marker.set_visible(true);
+        _has_marker = true;
     }
+}
+
+void ball_view::set_marker_only(bool visible)
+{
+    _ball.set_visible(false);
+    _shadow.set_visible(false);
+    _marker.set_visible(visible && _has_marker);
+}
+
+bn::optional<bn::fixed> ball_view::marker_y() const
+{
+    if(_has_marker && _marker.visible())
+    {
+        return _marker.y();
+    }
+
+    return bn::nullopt;
 }
 
 void ball_view::hide()
@@ -78,6 +96,7 @@ void ball_view::hide()
     _ball.set_visible(false);
     _shadow.set_visible(false);
     _marker.set_visible(false);
+    _has_marker = false;
 }
 
 }

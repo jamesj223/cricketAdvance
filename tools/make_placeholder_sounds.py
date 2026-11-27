@@ -71,9 +71,41 @@ def lowpass(samples, amount):
     return out
 
 
+# Short clicks (bat sounds) peak as high as the crowd but carry far less energy, so they
+# sound much quieter, especially on a handheld's tiny speaker. Sounds listed here are
+# "made louder" towards this loudness (RMS of their loudest 50 ms) with a soft clipper:
+# tanh squashes the peaks so everything else can come up. A crude compressor.
+LOUDNESS_TARGET = 0.27
+MAKE_LOUDER = {"bat.wav", "solid.wav", "clean.wav", "pock.wav", "mishit.wav", "edge.wav"}
+
+
+def loudest_rms(samples, window_seconds=0.05):
+    window = max(1, int(RATE * window_seconds))
+    best = 0.0
+    for start in range(0, max(1, len(samples) - window), window // 4):
+        chunk = samples[start:start + window]
+        best = max(best, math.sqrt(sum(x * x for x in chunk) / window))
+    return best
+
+
+def soft_clip(samples, drive):
+    scale = math.tanh(drive)
+    return [math.tanh(drive * x) / scale for x in samples]
+
+
 def write(name, samples):
     peak = max(abs(s) for s in samples) or 1.0
-    data = bytes(int(128 + 120 * s / peak) for s in samples)   # 8-bit unsigned
+    samples = [s / peak for s in samples]
+
+    if name in MAKE_LOUDER:
+        drive = 1.0
+        louder = samples
+        while loudest_rms(louder) < LOUDNESS_TARGET and drive < 8:
+            drive += 0.25
+            louder = soft_clip(samples, drive)
+        samples = louder
+
+    data = bytes(int(128 + 120 * s) for s in samples)   # 8-bit unsigned
     with wave.open(str(OUT / name), "wb") as w:
         w.setnchannels(1)
         w.setsampwidth(1)

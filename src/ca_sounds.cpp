@@ -92,12 +92,12 @@ void bat(const bat_contact& contact)
     {
         case outcome_type::EDGED:
         case outcome_type::CAUGHT_BEHIND:
-            bn::sound_items::edge.play(bn::fixed(0.6), bn::fixed(1.8), 0);   // thin nick
+            bn::sound_items::edge.play(bn::fixed(0.9), bn::fixed(1.8), 0);   // thin nick
             return;
 
         case outcome_type::BLOCKED:
         case outcome_type::CAUGHT_AND_BOWLED:
-            bn::sound_items::bat.play(bn::fixed(0.6), bn::fixed(0.75), 0);   // dead bat
+            bn::sound_items::bat.play(bn::fixed(0.8), bn::fixed(0.75), 0);   // dead bat
             return;
 
         default:
@@ -106,7 +106,7 @@ void bat(const bat_contact& contact)
 
     if(contact.defensive)
     {
-        bn::sound_items::bat.play(bn::fixed(0.6), bn::fixed(0.75), 0);
+        bn::sound_items::bat.play(bn::fixed(0.8), bn::fixed(0.75), 0);
         return;
     }
 
@@ -123,18 +123,18 @@ void bat(const bat_contact& contact)
             break;
 
         case timing_grade::GOOD:
-            bn::sound_items::solid.play(bn::fixed(0.9));
+            bn::sound_items::solid.play(1);
             break;
 
         default:
-            bn::sound_items::bat.play(bn::fixed(0.85));     // mistimed
+            bn::sound_items::bat.play(1);                   // mistimed
             break;
     }
 }
 
 void whoosh()
 {
-    bn::sound_items::whoosh.play(bn::fixed(0.7));
+    bn::sound_items::whoosh.play(bn::fixed(0.9));
 }
 
 void stumps()

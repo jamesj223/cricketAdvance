@@ -619,9 +619,11 @@ shot_outcome resolve_shot(shot_type shot, bool lofted, timing_grade grade, int r
         }
         else
         {
-            // Score 4: 25% caught, else 2. Score 3: 50% caught, else 1. Lower: 75%, else 0.
+            // Score 4: 25% caught, else 2 (sometimes 3, chased into the deep). Score 3:
+            // 50% caught, else 1. Lower: 75%, else 0.
             int caught_percent = score == 4 ? 25 : score == 3 ? 50 : 75;
-            int runs_if_not_caught = score == 4 ? 2 : score == 3 ? 1 : 0;
+            int runs_if_not_caught = score == 4 ? (chance(random, 30) ? 3 : 2) :
+                                     score == 3 ? 1 : 0;
 
             if(chance(random, caught_percent))
             {
@@ -642,11 +644,14 @@ shot_outcome resolve_shot(shot_type shot, bool lofted, timing_grade grade, int r
         }
         else if(score == 5)
         {
-            runs(chance(random, 50) ? 4 : 2);
+            // Through the infield: to the rope, or chased down just short of it.
+            int roll = random.get_int(100);
+            runs(roll < 45 ? 4 : roll < 70 ? 3 : 2);
         }
         else if(score == 4)
         {
-            runs(chance(random, 50) ? 2 : 1);
+            int roll = random.get_int(100);
+            runs(roll < 10 ? 3 : roll < 55 ? 2 : 1);
         }
         else if(score == 3)
         {

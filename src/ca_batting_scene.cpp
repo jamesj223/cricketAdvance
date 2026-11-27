@@ -1,11 +1,16 @@
 #include "ca_batting_scene.h"
 
+#include "bn_bg_palettes.h"
 #include "bn_math.h"
 #include "bn_keypad.h"
 #include "bn_sstream.h"
 #include "bn_string.h"
 
+#include "bn_regular_bg_items_field.h"
 #include "bn_regular_bg_items_pitch.h"
+#include "bn_regular_bg_items_pitch_zones_pace.h"
+#include "bn_regular_bg_items_pitch_zones_spin.h"
+#include "bn_sprite_palettes.h"
 
 #include "ca_sounds.h"
 
@@ -24,19 +29,36 @@ namespace
     // bowl the next ball.
     constexpr int COOLDOWN_FRAMES = 45;
 
-    // How long after the hit the crowd cheers a boundary (60 frames = 1 s). A six hangs
-    // in the air, so the cheer builds a little later.
-    constexpr int BOUNDARY_CHEER_DELAY_FRAMES = 30;
-    constexpr int SIX_CHEER_DELAY_FRAMES = 40;
+    // After a shot into the field: follow the ball this long (time to take in the shot),
+    // then fade (out, swap views, back in) to the top-down field view, and back again.
+    constexpr int FOLLOW_BALL_FRAMES = 45;
+    constexpr int FADE_FRAMES = 10;
+
+    // The result banner waits a moment after the ball is dead, so there's time to see
+    // what happened first. In the field view it follows the moment (rope, catch, runs).
+    constexpr int BANNER_DELAY_FRAMES = 30;
+    constexpr int FIELD_BANNER_DELAY_FRAMES = 15;
+
+    // After the last ball of an over, how long its banner shows before the next over's
+    // card. Input waits for the card, so you always see it before you can bowl.
+    constexpr int OVER_CARD_DELAY_FRAMES = 40;
 
     // After a dismissal, how long its banner ("CAUGHT!") shows before "GAME OVER".
-    constexpr int GAME_OVER_BANNER_DELAY_FRAMES = 75;
+    constexpr int GAME_OVER_BANNER_DELAY_FRAMES = 60;
+
+    // The timing bar slides up a moment after the shot (or, for a shot into the field,
+    // once we're back from the field view), so you watch the shot first.
+    constexpr int TIMING_BAR_DELAY_FRAMES = 20;
+    constexpr int TIMING_BAR_AFTER_FIELD_FRAMES = 8;
+
+    // Banners move up or down to keep clear of the pitch marker: this much space around it.
+    constexpr int MARKER_CLEARANCE = 6;
+
+    // Quick Play has no help line during the innings, so the timing bar sits lower.
+    constexpr int TIMING_BAR_Y_PRACTICE = 44;
+    constexpr int TIMING_BAR_Y_QUICK_PLAY = 52;
 
     constexpr int BALLS_PER_OVER = 6;   // no wides or no balls yet, so every ball counts
-
-    // The ball is removed 90 frames after the hit, then input is ignored for
-    // COOLDOWN_FRAMES; an outfield catch cheer must land before the next ball can start.
-    constexpr int MAX_CATCH_CHEER_DELAY_FRAMES = 120;
 
     // How far behind the bat an edge is caught: the keeper stands back to pace and up to
     // the stumps for spin (the slips are alongside the keeper).
@@ -55,10 +77,12 @@ batting_scene::batting_scene(game_mode mode, save_data& save) :
     _pitch(bn::regular_bg_items::pitch.create_bg(0, 0)),
     _scheme(save.scheme)
 {
+    _timing_bar.set_y(_aids() ? TIMING_BAR_Y_PRACTICE : TIMING_BAR_Y_QUICK_PLAY);
+    _pitch.set_item(_pitch_item());
     _show_bowler();
     _show_score();
     _show_help();
-    _hud.set_banner("PRESS A/B TO BOWL");
+    _hud.set_banner(mode == game_mode::QUICK_PLAY ? "PRESS A/B TO START" : "PRESS A/B TO BOWL");
 }
 
 bool batting_scene::update()
@@ -84,14 +108,27 @@ bool batting_scene::update()
             _update_live();
             break;
 
+        case state::TO_FIELD:
+        case state::TO_PITCH:
+            _update_transition();
+            break;
+
+        case state::FIELD:
+            _update_field();
+            break;
+
         default:
             break;
     }
 
-    // Ticks in every state: the ball may already be dead when the cheer is due.
-    if(_crowd_delay > 0 && --_crowd_delay == 0)
+    if(_banner_delay > 0 && --_banner_delay == 0)
     {
-        sounds::crowd(_outcome.type);
+        _show_pending_banner();
+    }
+
+    if(_over_card_delay > 0 && --_over_card_delay == 0)
+    {
+        _show_over_card();
     }
 
     // Out: the dismissal banner ("BOWLED!") stays up for a moment first.
@@ -100,6 +137,7 @@ bool batting_scene::update()
         _hud.set_sub_banner(_new_best ? "NEW HIGH SCORE!" : "GAME OVER");
     }
 
+    _timing_bar.update();
     _hud.update();
     return ! _exit;
 }
@@ -112,28 +150,36 @@ void batting_scene::_update_waiting()
         return;
     }
 
+    // Wait for the result banner and the next over's card, so neither is missed.
+    if(_banner_delay > 0 || _over_card_delay > 0)
+    {
+        return;
+    }
+
     bool quick_play = _mode == game_mode::QUICK_PLAY;
 
-    if(! quick_play && (bn::keypad::l_pressed() || bn::keypad::r_pressed()))
+    // Practice: SELECT cycles the bowlers (L/R are batting buttons, too easy to hit).
+    if(! quick_play && bn::keypad::select_pressed())
     {
-        int delta = bn::keypad::r_pressed() ? 1 : bowler_profiles_count - 1;
-        _bowler_index = (_bowler_index + delta) % bowler_profiles_count;
+        _bowler_index = (_bowler_index + 1) % bowler_profiles_count;
         _show_bowler();
+        _pitch.set_item(_pitch_item());     // pace and spin have different length zones
     }
 
     // Back to the menu: any time in Practice; in Quick Play only between innings, so a
     // stray press can't throw away a big score.
-    if(bn::keypad::select_pressed() && (! quick_play || _innings_over || ! _innings_started))
+    if(bn::keypad::start_pressed() && (! quick_play || _innings_over || ! _innings_started))
     {
         _exit = true;
         return;
     }
 
-    if(bn::keypad::a_pressed() || bn::keypad::b_pressed() || bn::keypad::start_pressed())
+    if(bn::keypad::a_pressed() || bn::keypad::b_pressed())
     {
         if(quick_play && (_innings_over || ! _innings_started))
         {
-            _new_innings();
+            _new_innings();     // shows who's bowling the first over; the next press bowls
+            return;
         }
 
         _start_delivery();
@@ -143,8 +189,10 @@ void batting_scene::_update_waiting()
 void batting_scene::_start_delivery()
 {
     _plan = generate_delivery(bowler_profiles[_bowler_index], _random);
+    _over_card_delay = 0;
 
     _hud.clear_lines();
+    _hud.reset_banner_y();
     _show_bowler();
     _show_score();
     _show_help();
@@ -170,6 +218,7 @@ void batting_scene::_release()
     _outcome = shot_outcome();
     _hit_frame = -1;
     _bounces_heard = 0;
+    _banner_queued = false;
 
     bn::string<48> text(bowler_profiles[_bowler_index].name);
     bn::ostringstream stream(text);
@@ -197,7 +246,10 @@ void batting_scene::_update_live()
             _shot_played = true;
             _shot = shot_type::LEAVE;
             _batter.play_shot(shot_type::LEAVE);
-            _hud.set_line(3, "LEAVE");
+            if(_aids())
+            {
+                _hud.set_line(3, "LEAVE");
+            }
         }
     }
 
@@ -206,23 +258,13 @@ void batting_scene::_update_live()
     {
         _hit_position = _flight->position();
         _flight->hit(_outcome.hit_velocity);
-        _hud.set_banner(outcome_banner(_outcome));
         sounds::bat(_contact);
 
-        // The crowd reacts once they see where it's going, not at the moment of the hit.
-        if(_outcome.type == outcome_type::FOUR)
+        if(goes_into_the_field(_outcome, is_defensive(_shot)))
         {
-            _crowd_delay = BOUNDARY_CHEER_DELAY_FRAMES;
-        }
-        else if(_outcome.type == outcome_type::SIX)
-        {
-            _crowd_delay = SIX_CHEER_DELAY_FRAMES;
-        }
-        else if(_outcome.type == outcome_type::CAUGHT && ! is_defensive(_shot))
-        {
-            // Outfield catches are taken after the ball has flown out of view (and been
-            // removed), so _check_catch never sees them: cheer when the catch would be.
-            _crowd_delay = _frames_until_catch();
+            // Watch it go for a moment, then cut to the field to see what happens (the
+            // banner and the crowd wait until then).
+            _field_delay = FOLLOW_BALL_FRAMES;
         }
     }
 
@@ -230,7 +272,16 @@ void batting_scene::_update_live()
 
     _ball_view.update(*_flight, _batter.z());
 
-    if(_flight->dead())
+    if(_field_delay > 0)
+    {
+        // Following the ball (even if it's come to rest), then over to the field.
+        if(--_field_delay == 0)
+        {
+            _transition_frame = 0;
+            _state = state::TO_FIELD;
+        }
+    }
+    else if(_flight->dead())
     {
         _finish_ball();
     }
@@ -263,20 +314,25 @@ void batting_scene::_play_shot(const shot_intent& intent, int frame)
     }
 
     _batter.play_shot(_shot);
-    _timing_bar.show(error, rating, is_defensive(_shot));
+    _timing_bar.prepare(error, rating, is_defensive(_shot));
 
-    // Feedback: what you played, how good a choice it was, and your timing.
+    if(! goes_into_the_field(_outcome, is_defensive(_shot)))
+    {
+        _timing_bar.reveal(TIMING_BAR_DELAY_FRAMES);
+    }
+
+    // Feedback (Practice only): what you played, how good a choice it was, your timing.
+    if(_aids())
     {
         bn::string<48> text;
         bn::ostringstream stream(text);
         stream << (intent.lofted ? "LOFTED " : "") << shot_name(_shot) << ": " << rating_name(rating);
         _hud.set_line(3, text);
-    }
-    {
-        bn::string<48> text;
-        bn::ostringstream stream(text);
-        stream << timing_name(grade) << " (" << (error > 0 ? "+" : "") << error << " FRAMES)";
-        _hud.set_line(4, text);
+
+        bn::string<48> timing;
+        bn::ostringstream timing_stream(timing);
+        timing_stream << timing_name(grade) << " (" << (error > 0 ? "+" : "") << error << " FRAMES)";
+        _hud.set_line(4, timing);
     }
 }
 
@@ -333,24 +389,107 @@ void batting_scene::_check_catch()
     }
 }
 
-int batting_scene::_frames_until_catch() const
+void batting_scene::_update_transition()
 {
-    // Solve h(t) = h0 + up*t - g/2 t^2 = CATCH_HEIGHT for the later (coming down) root:
-    //   t = (up + sqrt(up^2 + 2g (h0 - CATCH_HEIGHT))) / g
-    bn::fixed up = _outcome.hit_velocity.h;
-    bn::fixed h0 = _hit_position.h;
-    bn::fixed discriminant = mul(up, up) + mul(2 * GRAVITY, h0 - CATCH_HEIGHT);
-    // (If it never gets above catching height, it's caught at the top of its flight.)
-    bn::fixed root = discriminant > 0 ? bn::fixed(bn::sqrt(discriminant)) : bn::fixed(0);
-    bn::fixed t = div(up + root, GRAVITY);
+    // Fade to black, swap views at the darkest point, fade back in. Butano's palette fade
+    // recolours every palette towards black (a cheap trick: nothing is redrawn).
+    ++_transition_frame;
+    bool to_field = _state == state::TO_FIELD;
+    bn::fixed intensity;
 
-    // Never later than the next ball could start, or it would cheer over the next delivery.
-    return bn::clamp((t * 60).round_integer(), 1, MAX_CATCH_CHEER_DELAY_FRAMES);
+    if(_transition_frame < FADE_FRAMES)
+    {
+        intensity = div(_transition_frame, FADE_FRAMES);
+
+        if(to_field)
+        {
+            // Keep following the ball while the picture fades.
+            _flight->update();
+            _ball_view.update(*_flight, _batter.z());
+        }
+    }
+    else if(_transition_frame == FADE_FRAMES)
+    {
+        intensity = 1;
+        _show_field_view(to_field);
+    }
+    else if(_transition_frame < FADE_FRAMES * 2)
+    {
+        intensity = div(FADE_FRAMES * 2 - _transition_frame, FADE_FRAMES);
+    }
+    else
+    {
+        intensity = 0;
+
+        if(to_field)
+        {
+            _state = state::FIELD;
+        }
+        else
+        {
+            _finish_ball();
+        }
+    }
+
+    bn::bg_palettes::set_fade(bn::color(0, 0, 0), intensity);
+    bn::sprite_palettes::set_fade(bn::color(0, 0, 0), intensity);
+}
+
+void batting_scene::_show_field_view(bool field)
+{
+    _batter.set_visible(! field);
+    _stumps.set_visible(! field);
+    _hud.set_lines_visible(! field);
+    _ball_view.set_marker_only(! field);    // the pitch marker comes back with the pitch
+
+    if(field)
+    {
+        _pitch.set_item(bn::regular_bg_items::field);
+        bool keeper_back = _plan->speed_kmh >= KEEPER_BACK_MIN_KMH;
+        _field.emplace(_outcome, _hit_position, keeper_back);
+        _hud.reset_banner_y();
+        _hud.set_help(_aids() ? "A/B:SKIP" : "");
+    }
+    else
+    {
+        _field.reset();
+        _pitch.set_item(_pitch_item());
+        _place_banners();       // the field view's banner, moved off the marker
+    }
+}
+
+void batting_scene::_update_field()
+{
+    if(bn::keypad::a_pressed() || bn::keypad::b_pressed())
+    {
+        _field->skip();
+    }
+
+    switch(_field->update())
+    {
+        case field_view::status::EVENT:
+            _queue_banner(FIELD_BANNER_DELAY_FRAMES);
+
+            if(_outcome.type == outcome_type::FOUR || _outcome.type == outcome_type::SIX ||
+                    _outcome.type == outcome_type::CAUGHT)
+            {
+                sounds::crowd(_outcome.type);
+            }
+            break;
+
+        case field_view::status::DONE:
+            _show_pending_banner();     // skipped: don't lose it
+            _transition_frame = 0;
+            _state = state::TO_PITCH;
+            break;
+
+        default:
+            break;
+    }
 }
 
 void batting_scene::_finish_ball()
 {
-
     if(! _flight->was_hit())
     {
         _outcome.runs = 0;
@@ -370,9 +509,14 @@ void batting_scene::_finish_ball()
         {
             _outcome.type = outcome_type::PLAYED_AND_MISSED;
         }
-
-        _hud.set_banner(outcome_banner(_outcome));
     }
+
+    if(! _banner_queued)
+    {
+        _queue_banner(BANNER_DELAY_FRAMES);
+    }
+
+    _timing_bar.reveal(TIMING_BAR_AFTER_FIELD_FRAMES);    // (no-op if it's already on its way)
 
     ++_balls;
     _runs += _outcome.runs;
@@ -393,11 +537,14 @@ void batting_scene::_finish_ball()
         _end_of_over();
     }
 
-    // Reveal what the ball was, now that it's too late to matter.
-    bn::string<48> text(length_zone_name(_length));
-    text.append(", ");
-    text.append(line_zone_name(_line));
-    _hud.set_line(2, text);
+    // Reveal what the ball was, now that it's too late to matter (Practice only).
+    if(_aids())
+    {
+        bn::string<48> text(length_zone_name(_length));
+        text.append(", ");
+        text.append(line_zone_name(_line));
+        _hud.set_line(2, text);
+    }
 
     _show_score();
     _cooldown = COOLDOWN_FRAMES;
@@ -460,20 +607,107 @@ void batting_scene::_new_innings()
 
     _over_bowler = 0;
     _bowler_index = _bowlers[0];
+
+    // A fresh start on screen, then the first over's card.
+    _hud.clear_lines();
+    _batter.reset();
+    _stumps.set_broken(false);
+    _timing_bar.hide();
+    _ball_view.hide();
+    _show_score();
+    _show_over_card();
+    _show_help();
 }
 
 void batting_scene::_end_of_over()
 {
-    _hud.set_sub_banner("END OF OVER");
     _over_bowler = 1 - _over_bowler;
     _bowler_index = _bowlers[_over_bowler];
-    _show_bowler();     // shows who's bowling the next over
+    _over_card_delay = _banner_delay + OVER_CARD_DELAY_FRAMES;  // the last ball's banner first
+}
+
+void batting_scene::_show_over_card()
+{
+    // "OVER 2" / "LEFT-ARM INSWING": who's bowling this over (also the end-of-over cue).
+    bn::string<24> over("OVER ");
+    {
+        bn::ostringstream stream(over);
+        stream << _balls / BALLS_PER_OVER + 1;
+    }
+
+    _hud.set_banner(over);
+    _hud.set_sub_banner(bowler_profiles[_bowler_index].name);
+    _show_bowler();
+}
+
+void batting_scene::_queue_banner(int delay)
+{
+    _banner_queued = true;
+    _banner_delay = bn::max(delay, 1);
+}
+
+void batting_scene::_show_pending_banner()
+{
+    if(_banner_queued)
+    {
+        _banner_delay = 0;
+
+        if(_state != state::FIELD)
+        {
+            _place_banners();
+        }
+
+        _hud.set_banner(outcome_banner(_outcome));
+    }
+}
+
+const bn::regular_bg_item& batting_scene::_pitch_item() const
+{
+    // Practice paints the TV-style length zones on the pitch (they differ for spin).
+    if(! _aids())
+    {
+        return bn::regular_bg_items::pitch;
+    }
+
+    return bowler_profiles[_bowler_index].type == bowler_type::SPIN ?
+                bn::regular_bg_items::pitch_zones_spin : bn::regular_bg_items::pitch_zones_pace;
+}
+
+void batting_scene::_place_banners()
+{
+    // The banners normally sit across the middle of the pitch, which is right where most
+    // balls pitch. If the marker's under them, move them: below it for full balls (up the
+    // screen, near the batter), above it for shorter ones.
+    bn::optional<bn::fixed> marker = _ball_view.marker_y();
+    int y = debug_hud::default_banner_y();
+
+    if(marker)
+    {
+        int marker_y = marker->round_integer();
+        int half = debug_hud::BANNER_LINE_HEIGHT / 2;
+        int top = y - half;                                     // of the first line
+        int bottom = y + debug_hud::BANNER_LINE_HEIGHT + half;  // of the second
+
+        if(marker_y + MARKER_CLEARANCE > top && marker_y - MARKER_CLEARANCE < bottom)
+        {
+            if(marker_y <= y + half)
+            {
+                y = marker_y + MARKER_CLEARANCE + half;     // below the marker
+            }
+            else
+            {
+                y = marker_y - MARKER_CLEARANCE - half - debug_hud::BANNER_LINE_HEIGHT;   // above
+            }
+        }
+    }
+
+    _hud.set_banner_y(y);
 }
 
 void batting_scene::_innings_ended()
 {
     _innings_over = true;
-    _game_over_delay = GAME_OVER_BANNER_DELAY_FRAMES;
+    _game_over_delay = _banner_delay + GAME_OVER_BANNER_DELAY_FRAMES;
     _new_best = record_innings(_save, _scheme, _runs, _balls);
 
     if(_new_best)
@@ -487,19 +721,19 @@ void batting_scene::_show_help()
     // One line, just above the scoreboard. Keep it under ~230 px (~6 px per character).
     if(_state != state::WAITING)
     {
-        _hud.set_help(scheme_help(_scheme));
+        _hud.set_help(_aids() ? scheme_help(_scheme) : "");
     }
     else if(_mode == game_mode::PRACTICE)
     {
-        _hud.set_help("A/B:BOWL  L/R:BOWLER  SEL:MENU");
+        _hud.set_help("A/B:BOWL  SELECT:BOWLER  START:MENU");
     }
     else if(_innings_over || ! _innings_started)
     {
-        _hud.set_help(_innings_over ? "A/B:NEW INNINGS  SEL:MENU" : "A/B:BOWL  SEL:MENU");
+        _hud.set_help(_innings_over ? "A/B:NEW INNINGS  START:MENU" : "A/B:PLAY  START:MENU");
     }
     else
     {
-        _hud.set_help("A/B:BOWL");
+        _hud.set_help("");      // Quick Play: no hints mid-innings
     }
 }
 
