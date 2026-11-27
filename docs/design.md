@@ -151,6 +151,47 @@ The user tested in mGBA and on the RG SP.
   - a cover drive to FULL/STUMPS gets a 2
   - judge the line a little past the stumps for swinging balls
   - a per-bowler "drive-able" bias
+- **Reverse sweep feels easier than the sweep** (playtest 3, early impression; first ball,
+  full outside off, reverse swept for 4). **Open; needs more play.** Likely the same root
+  cause as the outswinger:
+  - the only spinner is a leg spinner, which turns from leg to off for a right-hander
+  - the line is classified at the crease, after the turn, so most balls count as "outside
+    off" or "on the stumps"
+  - the reverse sweep's best cells are outside off; the sweep's 3s need "leg side", which
+    a leg spinner rarely gives you
+
+  Options if it holds up: rate the sweep 3 on the stumps for full balls; judge spin's line
+  where it pitches; or wait for an off spinner (turning into the pads), where the sweep
+  should come into its own.
+
+### Phase 3 playtest 3 (real hardware: GBA SP, GBA micro, RG SP)
+
+- Timing bar slide: "perfect, very smooth". Length zones: good.
+- The original GBA SP's screen is very dark (unlit). The game is fully playable on it;
+  the only problem is seeing the ball in the field view. **Not designing for it**; it's
+  fine on the GBA micro and RG SP.
+- **Banners dodging the marker could cover Practice's info lines.** In Practice they now
+  go above the marker instead, whenever going below would reach the lines.
+- **Quick Play shows the shot played again** ("LOFTED COVER DRIVE"), under the bowler
+  line top left. The little batter's poses can't show every shot clearly. There's no
+  rating or timing; that stays in Practice.
+- **Done — sweeps against spin:** front foot + up-right = SWEEP, up-left = REVERSE
+  SWEEP, against spinners only (instead of the leg glance / guide). Back foot is unchanged
+  (hook / late cut). In Basic the game picks the front foot for full and good-length spin,
+  so the sweep comes out naturally there. Each has its own pose (down on one knee, bat flat
+  to the leg / off side).
+  - Ratings (rows yorker / full / good / short; columns wide off / off / stumps / leg):
+
+    | Shot | Yorker | Full | Good | Short |
+    |---|---|---|---|---|
+    | Sweep | 0 0 1 1 | 0 1 2 3 | 0 1 2 3 | 0 0 1 1 |
+    | Reverse sweep | 0 0 1 0 | 1 2 2 0 | 1 3 2 0 | 0 1 0 0 |
+
+  - Directions: the sweep goes behind square on the leg side (110°), the reverse sweep
+    behind point (−115°).
+  - **Top edges:** 30% of mistimed sweeps (EARLY / LATE) are top-edged high to fine leg /
+    short third man and caught. Cross-batted shots should carry their own risk.
+  - To playtest: does it feel worth the risk? Is 30% too harsh?
 
 ## Camera / presentation
 

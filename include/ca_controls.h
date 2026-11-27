@@ -7,7 +7,8 @@
 // Both aim with the D-pad, which maps onto the field as seen on screen (the batter faces
 // the camera): down = straight, down-left = cover, left = point, up-left = third man,
 // up-right = fine leg, right = square leg, down-right = midwicket. Up = block.
-// Hold L or R = lofted.
+// Hold L or R = lofted. Against spin, front foot + up-right = sweep and front foot +
+// up-left = reverse sweep (instead of the leg glance / guide).
 //
 //   BASIC (V2): A or B plays the shot. The game picks front or back foot from the length
 //               (front to full balls, back to short), not always the best-rated one.

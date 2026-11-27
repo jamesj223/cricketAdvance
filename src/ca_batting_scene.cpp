@@ -246,10 +246,7 @@ void batting_scene::_update_live()
             _shot_played = true;
             _shot = shot_type::LEAVE;
             _batter.play_shot(shot_type::LEAVE);
-            if(_aids())
-            {
-                _hud.set_line(3, "LEAVE");
-            }
+            _hud.set_line(_aids() ? 3 : 1, "LEAVE");
         }
     }
 
@@ -292,7 +289,8 @@ void batting_scene::_play_shot(const shot_intent& intent, int frame)
     // Basic: the game reads the length, like a batter's instinct (not always the best
     // shot; Pro players can beat it by choosing the foot themselves).
     footwork foot = intent.foot ? *intent.foot : _natural_footwork();
-    _shot = make_shot(intent.attacking, foot, intent.direction);
+    _shot = make_shot(intent.attacking, foot, intent.direction,
+                      bowler_profiles[_bowler_index].type == bowler_type::SPIN);
     _shot_played = true;
 
     int rating = shot_rating(_shot, _line, _length);
@@ -321,8 +319,16 @@ void batting_scene::_play_shot(const shot_intent& intent, int frame)
         _timing_bar.reveal(TIMING_BAR_DELAY_FRAMES);
     }
 
-    // Feedback (Practice only): what you played, how good a choice it was, your timing.
-    if(_aids())
+    // Quick Play: just the shot you played (the little batter can't show them all
+    // clearly). Practice: also how good a choice it was, and your timing.
+    if(! _aids())
+    {
+        bn::string<48> text;
+        bn::ostringstream stream(text);
+        stream << (intent.lofted ? "LOFTED " : "") << shot_name(_shot);
+        _hud.set_line(1, text);
+    }
+    else
     {
         bn::string<48> text;
         bn::ostringstream stream(text);
@@ -690,9 +696,15 @@ void batting_scene::_place_banners()
 
         if(marker_y + MARKER_CLEARANCE > top && marker_y - MARKER_CLEARANCE < bottom)
         {
-            if(marker_y <= y + half)
+            int below = marker_y + MARKER_CLEARANCE + half;
+            int below_bottom = below + debug_hud::BANNER_LINE_HEIGHT + half;
+
+            // Below, unless that would cover Practice's info lines (then above instead).
+            bool lines_below = _aids() && below_bottom > debug_hud::LOWER_LINES_TOP;
+
+            if(marker_y <= y + half && ! lines_below)
             {
-                y = marker_y + MARKER_CLEARANCE + half;     // below the marker
+                y = below;
             }
             else
             {

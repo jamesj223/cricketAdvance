@@ -113,7 +113,7 @@ def make_sprites():
 # Right-handed batter seen from the bowler's end, one 32x32 frame per pose, stacked
 # vertically (Butano reads a tall image + "height": 32 as an animation strip).
 # The frame order MUST match ca::batter_pose in include/ca_batter_view.h.
-BATTER_POSES = ["stance", "block", "drive", "cut", "pull", "leave"]
+BATTER_POSES = ["stance", "block", "drive", "cut", "pull", "leave", "sweep", "reverse_sweep"]
 BATTER_PALETTE = [
     MAGENTA,
     (245, 245, 240),  # 1 whites / pads
@@ -132,16 +132,27 @@ def draw_batter(draw, ox, oy, pose):
     def bat(x0, y0, x1, y1):
         draw.line([(ox + x0, oy + y0), (ox + x1, oy + y1)], fill=4, width=2)
 
-    crouch = 2 if pose == "block" else 0
-    # Legs + pads (front leg forward/left for the block).
-    lx = -2 if pose == "block" else 0
-    rect(13 + lx, 19, 15 + lx, 29, 1)
-    rect(17, 19, 19, 29, 1)
-    rect(13 + lx, 30, 15 + lx, 31, 5)
-    rect(17, 30, 19, 31, 5)
+    sweeping = pose in ("sweep", "reverse_sweep")
+    crouch = 2 if pose == "block" else 6 if sweeping else 0
+    if sweeping:
+        # Down on one knee: front leg bent (thigh across, shin down), back knee on the grass.
+        rect(11, 25, 15, 27, 1)      # front thigh
+        rect(11, 27, 13, 29, 1)      # front shin
+        rect(11, 30, 13, 31, 5)
+        rect(17, 25, 19, 29, 1)      # back thigh, kneeling
+        rect(17, 30, 23, 31, 1)      # back shin along the ground
+        rect(22, 30, 23, 31, 5)
+    else:
+        # Legs + pads (front leg forward/left for the block).
+        lx = -2 if pose == "block" else 0
+        rect(13 + lx, 19, 15 + lx, 29, 1)
+        rect(17, 19, 19, 29, 1)
+        rect(13 + lx, 30, 15 + lx, 31, 5)
+        rect(17, 30, 19, 31, 5)
     # Body.
-    rect(13, 9 + crouch, 19, 19, 1)
-    rect(18, 10 + crouch, 19, 19, 6)
+    body_bottom = 25 if sweeping else 19
+    rect(13, 9 + crouch, 19, body_bottom, 1)
+    rect(18, 10 + crouch, 19, body_bottom, 6)
     # Head: helmet with a face peeking out.
     rect(14, 3 + crouch, 18, 8 + crouch, 2)
     rect(15, 6 + crouch, 17, 7 + crouch, 3)
@@ -165,6 +176,12 @@ def draw_batter(draw, ox, oy, pose):
     elif pose == "leave":
         bat(20, 9, 22, 0)      # bat held up, well out of the way
         rect(19, 9, 20, 10, 3)
+    elif pose == "sweep":
+        bat(20, 22, 31, 25)    # low and flat, out to the leg side
+        rect(19, 21, 20, 22, 3)
+    elif pose == "reverse_sweep":
+        bat(12, 22, 1, 25)     # the same, out to the off side
+        rect(12, 21, 13, 22, 3)
 
 
 def make_batter():

@@ -131,6 +131,23 @@ namespace
             /* GOOD   */ { 0,   0,   1,   1 },
             /* SHORT  */ { 0,   1,   2,   2 },
         },
+        // SWEEP (spin only): front foot, down on one knee, to fine leg. Best to full /
+        // good length on leg stump or down leg; fine on the stumps; risky from outside off
+        // (across the line) or to anything short (bounces over the bat).
+        {
+            /* YORKER */ { 0,   0,   1,   1 },
+            /* FULL   */ { 0,   1,   2,   3 },
+            /* GOOD   */ { 0,   1,   2,   3 },
+            /* SHORT  */ { 0,   0,   1,   1 },
+        },
+        // REVERSE_SWEEP (spin only): the mirror image, to third man. Best to a good length
+        // outside off; fine on the stumps; hopeless down leg.
+        {
+            /* YORKER */ { 0,   0,   1,   0 },
+            /* FULL   */ { 1,   2,   2,   0 },
+            /* GOOD   */ { 1,   3,   2,   0 },
+            /* SHORT  */ { 0,   1,   0,   0 },
+        },
     };
 
     // =====================================================================================
@@ -179,6 +196,8 @@ namespace
         -130,   // LATE_CUT
         125,    // HOOK
         50,     // SLOG
+        110,    // SWEEP: behind square on the leg side
+        -115,   // REVERSE_SWEEP: behind point
     };
 
     constexpr int ANGLE_RANDOM = 12;        // +/- degrees of variety
@@ -194,6 +213,11 @@ namespace
     constexpr int LEG_CAUGHT_EDGE_ANGLE = 174;
     constexpr int CAUGHT_EDGE_RANDOM = 5;
     constexpr int BAT_PAD_ANGLE = 60;
+
+    // Sweeps are cross-batted, so mistiming one is extra risky: this % of the EARLY / LATE
+    // ones top edge it, high in the air to fine leg / short third man, and are caught.
+    constexpr int SWEEP_TOP_EDGE_PERCENT = 30;
+    constexpr int TOP_EDGE_ANGLE = 150;     // + for the sweep, - for the reverse sweep
 
     // =====================================================================================
     // Blocking risk. A block is safe on the stumps with good timing; the risk comes from
@@ -247,6 +271,11 @@ namespace
             case outcome_type::CAUGHT_AND_BOWLED:
                 return { 9, bn::fixed(5.5) };      // lobs back ~7 m to the bowler
             case outcome_type::CAUGHT:
+                if(outcome.top_edge)
+                {
+                    return { 12, 10 };              // skied, ~25 m: fine leg runs round
+                }
+
                 if(is_defensive(shot))
                 {
                     return { 5, 4 };                // bat-pad: pops up to a close fielder
@@ -313,6 +342,10 @@ namespace
             angle = 0;
             spread = CAUGHT_EDGE_RANDOM;
         }
+        else if(outcome.top_edge)
+        {
+            angle = leg_side_shot ? TOP_EDGE_ANGLE : -TOP_EDGE_ANGLE;
+        }
         else if(outcome.type == outcome_type::CAUGHT && is_defensive(shot))
         {
             angle = random.get_int(2) ? BAT_PAD_ANGLE : -BAT_PAD_ANGLE;   // short leg / silly point
@@ -329,7 +362,7 @@ namespace
     }
 }
 
-shot_type make_shot(bool attacking, footwork foot, shot_direction direction)
+shot_type make_shot(bool attacking, footwork foot, shot_direction direction, bool against_spin)
 {
     if(! attacking)
     {
@@ -346,7 +379,27 @@ shot_type make_shot(bool attacking, footwork foot, shot_direction direction)
         { shot_type::CLIP,           shot_type::PULL },              // SQUARE_LEG
         { shot_type::ON_DRIVE,       shot_type::SLOG },              // MIDWICKET
     };
-    return shots[int(direction)][foot == footwork::FRONT ? 0 : 1];
+    shot_type shot = shots[int(direction)][foot == footwork::FRONT ? 0 : 1];
+
+    if(against_spin)
+    {
+        if(shot == shot_type::LEG_GLANCE)
+        {
+            return shot_type::SWEEP;
+        }
+
+        if(shot == shot_type::GUIDE)
+        {
+            return shot_type::REVERSE_SWEEP;
+        }
+    }
+
+    return shot;
+}
+
+bool is_sweep(shot_type shot)
+{
+    return shot == shot_type::SWEEP || shot == shot_type::REVERSE_SWEEP;
 }
 
 footwork shot_footwork(shot_type shot)
@@ -377,7 +430,7 @@ const char* shot_name(shot_type shot)
     constexpr const char* names[] = {
         "FORWARD DEFENCE", "BACK FOOT DEFENCE", "COVER DRIVE", "STRAIGHT DRIVE", "ON DRIVE",
         "CUT", "BACK FOOT PUNCH", "PULL", "SQUARE DRIVE", "GUIDE", "LEG GLANCE", "CLIP",
-        "BACK FOOT DRIVE", "LATE CUT", "HOOK", "SLOG", "LEAVE",
+        "BACK FOOT DRIVE", "LATE CUT", "HOOK", "SLOG", "SWEEP", "REVERSE SWEEP", "LEAVE",
     };
     return names[int(shot)];
 }
@@ -530,6 +583,15 @@ shot_outcome resolve_shot(shot_type shot, bool lofted, timing_grade grade, int r
     if(! makes_contact(grade))
     {
         outcome.type = outcome_type::PLAYED_AND_MISSED;
+        return outcome;
+    }
+
+    if(is_sweep(shot) && (grade == timing_grade::EARLY || grade == timing_grade::LATE) &&
+       chance(random, SWEEP_TOP_EDGE_PERCENT))
+    {
+        outcome.type = outcome_type::CAUGHT;
+        outcome.top_edge = true;
+        outcome.hit_velocity = hit_velocity(shot, grade, outcome, random);
         return outcome;
     }
 

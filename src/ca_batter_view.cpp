@@ -28,6 +28,10 @@ namespace
             case shot_type::HOOK:
             case shot_type::SLOG:
                 return batter_pose::PULL;
+            case shot_type::SWEEP:
+                return batter_pose::SWEEP;
+            case shot_type::REVERSE_SWEEP:
+                return batter_pose::REVERSE_SWEEP;
             case shot_type::LEAVE:
                 return batter_pose::LEAVE;
             default:

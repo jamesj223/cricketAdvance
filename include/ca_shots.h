@@ -68,10 +68,12 @@ namespace ca
         LATE_CUT,           // back foot, third man
         HOOK,               // back foot, fine leg
         SLOG,               // back foot, midwicket
+        SWEEP,              // front foot, fine leg, against spin (replaces the glance)
+        REVERSE_SWEEP,      // front foot, third man, against spin (replaces the guide)
         LEAVE,
     };
 
-    constexpr int RATED_SHOT_COUNT = 16;    // every shot except LEAVE
+    constexpr int RATED_SHOT_COUNT = 18;    // every shot except LEAVE
 
     // What the player asked for. foot is empty when the game picks the footwork (from
     // the length, like a batter's instinct).
@@ -83,7 +85,11 @@ namespace ca
         bool lofted = false;
     };
 
-    [[nodiscard]] shot_type make_shot(bool attacking, footwork foot, shot_direction direction);
+    // Against spin, the front-foot shots to fine leg and third man become the sweep and
+    // the reverse sweep (down on one knee, under the turn).
+    [[nodiscard]] shot_type make_shot(bool attacking, footwork foot, shot_direction direction,
+                                      bool against_spin);
+    [[nodiscard]] bool is_sweep(shot_type shot);
     [[nodiscard]] footwork shot_footwork(shot_type shot);
     [[nodiscard]] bool is_defensive(shot_type shot);
     [[nodiscard]] const char* shot_name(shot_type shot);
@@ -159,6 +165,7 @@ namespace ca
     {
         outcome_type type;
         int runs = 0;
+        bool top_edge = false;  // a mistimed sweep, skied fine (CAUGHT only)
         vec3 hit_velocity;      // m/s; only meaningful if the bat made contact
     };
 

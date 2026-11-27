@@ -102,7 +102,8 @@ Then the game loop:
   ("OVER 2" / bowler) before each over, including the first
 - [x] Playtest fielding / transitions / banners (round 1: see design.md)
 - [x] Playtest round 2: banner / fade delays, 3s, keeper, Quick Play without aids, louder sound, outswinger
-- [ ] Playtest round 3: sliding timing bar, marker kept + banners dodging it, Practice length zones; sound on RG SP; outswinger cover drives
+- [x] Playtest round 3: sliding timing bar, marker kept + banners dodging it, Practice length zones; sound on RG SP; outswinger cover drives
+- [x] Sweep / reverse sweep against spin (own rating rows + poses) — to playtest
 - [ ] Quick Play pause menu (START mid-innings), so the menu is reachable without losing the innings
 - [ ] Later: milestone banners (50, 100); fielders deciding the result; run outs
 

@@ -18,6 +18,8 @@ namespace ca
         CUT,
         PULL,
         LEAVE,
+        SWEEP,
+        REVERSE_SWEEP,
     };
 
     class batter_view

@@ -46,6 +46,7 @@ namespace ca
         void reset_banner_y();
         [[nodiscard]] static int default_banner_y();
         static constexpr int BANNER_LINE_HEIGHT = 16;
+        static constexpr int LOWER_LINES_TOP = 3;   // top of info lines 2-4 (screen y)
 
         // Call once per frame.
         void update();

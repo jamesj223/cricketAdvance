@@ -157,8 +157,8 @@ void debug_hud::update()
     _sprites.clear();
 
     // Line positions keep clear of the batter (top centre) and the ball's path.
-    // Line 0: top-left. Line 1: top-right (unused since the scoreboard). Lines 2-4:
-    // lower-left, above the timing bar.
+    // Line 0: top-left. Line 1: under it (Quick Play's shot name). Lines 2-4:
+    // lower-left, above the timing bar (Practice's aids).
     struct position
     {
         int x;
@@ -168,7 +168,7 @@ void debug_hud::update()
 
     constexpr position positions[LINES] = {
         { -116, -74, false },
-        { 116, -64, true },
+        { -116, -64, false },
         { -116, 8, false },
         { -116, 18, false },
         { -116, 28, false },
